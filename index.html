@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сравнение папок — этап 0</title>
+<meta name="theme-color" content="#1f2937">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#1d2330;--muted:#667085;--line:#d9dde3;--accent:#2563eb}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:10px 20px;background:#1f2937;color:#fff;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:600}
+header .ver{color:#9ca3af;font-size:12px}
+header label{font-size:13px;color:#d1d5db}
+header select{margin-left:4px}
+main{padding:16px 20px;max-width:1500px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1000px){.sides{grid-template-columns:1fr}}
+button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.muted{color:var(--muted)}
+.path{font-family:Consolas,monospace;font-size:12.5px;word-break:break-all}
+.bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:8px 0 4px}
+.bar>div{height:100%;background:var(--accent);width:0}
+.bar.indet>div{width:30%;animation:ind 1.2s linear infinite}
+@keyframes ind{from{margin-left:-30%}to{margin-left:100%}}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+th{background:#f9fafb;font-weight:600;position:sticky;top:0}
+td.num,th.num{text-align:right;white-space:nowrap}
+.scroll{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.stat{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin-top:8px}
+.stat>div:nth-child(odd){color:var(--muted)}
+.msg{padding:8px 10px;border-radius:6px;margin:6px 0;font-size:13px}
+.msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+#log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px}
+textarea{width:100%;height:280px;font-family:Consolas,monospace;font-size:12px}
+select{font:inherit;padding:3px}
+details summary{cursor:pointer;font-weight:600;margin:8px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Сравнение папок и файлов</h1>
+  <span class="ver">этап 0 · разведка · v0.2 (PWA)</span>
+  <label>Потоков чтения свойств:
+    <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
+  </label>
+  <label>Режим обхода:
+    <select id="setMode"><option value="auto">фоновый (Web Worker)</option><option value="main">основной поток (для сравнения)</option></select>
+  </label>
+</header>
+<main>
+  <div id="globalMsg"></div>
+
+  <div class="sides" id="sides"></div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnBoth" class="primary">Сканировать обе папки</button>
+      <button id="btnReport">Отчёт для чата</button>
+    </div>
+    <div id="reportBox" hidden>
+      <p class="muted">Скопируйте этот текст и вставьте в чат с замечаниями.</p>
+      <div class="row"><button id="btnCopy">Скопировать</button><span id="copyState" class="muted"></span></div>
+      <textarea id="reportText" readonly></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Диагностика дат по одинаковым путям (A ↔ B)</h2>
+    <div id="pairs" class="muted">Появится после обхода обеих папок.</div>
+  </div>
+
+  <div class="card">
+    <h2>Журнал</h2>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   БЛОК 1. ОБХОД ПАПКИ
+   Одна функция работает и в Web Worker, и в основном потоке.
+   Не обращается ни к чему снаружи (её текст копируется в Worker).
+   ===================================================================== */
+async function scanCore(root, opts, onProgress, isCancelled) {
+  const t0 = performance.now();
+  const errors = [];
+  const entries = [];
+  const queue = [{ h: root, p: '' }];
+  let qi = 0, dirs = 0, last = 0;
+  const errText = e => ((e && e.name) || 'Error') + ': ' + ((e && e.message) || String(e));
+
+  async function report(o, force) {
+    const now = performance.now();
+    if (!force && now - last < 200) return;
+    last = now;
+    o.elapsed = now - t0; o.errors = errors.length; o.dirs = dirs;
+    onProgress(o);
+    if (opts.yieldUI) await new Promise(r => setTimeout(r, 0));
+  }
+
+  // Фаза 1: список файлов и подпапок
+  while (qi < queue.length) {
+    if (isCancelled()) return null;
+    const item = queue[qi]; queue[qi++] = null;
+    try {
+      for await (const [name, child] of item.h.entries()) {
+        const rel = item.p ? item.p + '/' + name : name;
+        if (child.kind === 'directory') { queue.push({ h: child, p: rel }); dirs++; }
+        else entries.push({ h: child, p: rel });
+        await report({ phase: 'list', found: entries.length, cur: item.p });
+        if (isCancelled()) return null;
+      }
+    } catch (e) {
+      if (!item.p) throw e; // корень недоступен — продолжать бессмысленно
+      errors.push({ p: item.p, op: 'чтение папки', e: errText(e) });
+    }
+  }
+  const tList = performance.now() - t0;
+
+  // Фаза 2: размер и дата каждого файла (параллельно)
+  const total = entries.length;
+  const out = new Array(total);
+  let next = 0, done = 0;
+  const conc = Math.max(1, Math.min(64, (opts.conc | 0) || 8));
+  async function runner() {
+    while (!isCancelled()) {
+      const i = next++;
+      if (i >= total) return;
+      const en = entries[i]; entries[i] = null;
+      try {
+        const f = await en.h.getFile();
+        out[i] = { p: en.p, s: f.size, m: f.lastModified };
+      } catch (e) {
+        errors.push({ p: en.p, op: 'чтение свойств файла', e: errText(e) });
+      }
+      done++;
+      await report({ phase: 'meta', found: total, done, cur: en.p });
+    }
+  }
+  await report({ phase: 'meta', found: total, done: 0, cur: '' }, true);
+  await Promise.all(Array.from({ length: conc }, runner));
+  if (isCancelled()) return null;
+
+  const files = out.filter(Boolean);
+  const tTotal = performance.now() - t0;
+  return { files, errors, dirs, tList, tMeta: tTotal - tList, tTotal, conc };
+}
+
+/* =====================================================================
+   БЛОК 2. ЗАПУСК ОБХОДА (Worker с запасным вариантом в основном потоке)
+   ===================================================================== */
+const WORKER_SRC = scanCore.toString() + `
+self.onmessage = async (ev) => {
+  try {
+    const res = await scanCore(ev.data.root, ev.data.opts,
+      pr => self.postMessage({ type: 'progress', pr }), () => false);
+    self.postMessage({ type: 'done', res });
+  } catch (e) {
+    self.postMessage({ type: 'fail', name: (e && e.name) || 'Error', message: (e && e.message) || String(e) });
+  }
+};
+self.postMessage({ type: 'ready' });`;
+
+function runScan(root, opts, onProgress, log) {
+  let cancelled = false, worker = null, url = null, resolveF, rejectF;
+  const promise = new Promise((res, rej) => { resolveF = res; rejectF = rej; });
+  const cleanup = () => {
+    if (worker) worker.terminate();
+    worker = null;
+    if (url) URL.revokeObjectURL(url);
+    url = null;
+  };
+  const ctl = { promise, mode: '', cancel() { cancelled = true; cleanup(); resolveF(null); } };
+
+  const startMain = reason => {
+    ctl.mode = 'основной поток';
+    if (reason) log('фоновый режим недоступен (' + reason + '), обход в основном потоке');
+    scanCore(root, Object.assign({}, opts, { yieldUI: true }), onProgress, () => cancelled)
+      .then(resolveF, rejectF);
+  };
+
+  if (opts.mode === 'main' || typeof Worker === 'undefined') { startMain(''); return ctl; }
+
+  try {
+    url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+    worker = new Worker(url);
+  } catch (e) { cleanup(); startMain('Worker не создан: ' + e.name); return ctl; }
+
+  ctl.mode = 'Web Worker';
+  let alive = false;
+  const readyTimer = setTimeout(() => {
+    if (!alive && worker && !cancelled) { cleanup(); startMain('Worker не ответил за 3 с'); }
+  }, 3000);
+
+  worker.onmessage = ev => {
+    const d = ev.data;
+    if (d.type === 'ready') {
+      alive = true; clearTimeout(readyTimer);
+      try { worker.postMessage({ root, opts }); }
+      catch (e) { cleanup(); startMain('Worker не принял папку: ' + e.name); }
+    } else if (d.type === 'progress') onProgress(d.pr);
+    else if (d.type === 'done') { cleanup(); resolveF(d.res); }
+    else if (d.type === 'fail') {
+      cleanup(); const er = new Error(d.message); er.name = d.name; rejectF(er);
+    }
+  };
+  worker.onerror = ev => {
+    ev.preventDefault();
+    clearTimeout(readyTimer);
+    const wasAlive = alive;
+    cleanup();
+    if (cancelled) return;
+    if (!wasAlive) startMain('Worker не запустился');
+    else rejectF(new Error('Сбой фонового обхода: ' + (ev.message || 'без описания')));
+  };
+  return ctl;
+}
+
+/* =====================================================================
+   БЛОК 3. ХРАНЕНИЕ (последние папки в IndexedDB, настройки в localStorage)
+   ===================================================================== */
+const IDB = {
+  db: null,
+  async open() {
+    if (this.db) return this.db;
+    this.db = await new Promise((res, rej) => {
+      const r = indexedDB.open('sravnenie-papok-v0', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('handles');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return this.db;
+  },
+  async put(k, v) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(v, k);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  },
+  async get(k) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const r = db.transaction('handles').objectStore('handles').get(k);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  }
+};
+
+const SETTINGS_KEY = 'sravnenie-papok-v0-settings';
+const settings = { conc: 8, mode: 'auto' };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+
+/* =====================================================================
+   БЛОК 4. ВСПОМОГАТЕЛЬНОЕ (форматирование, ошибки, журнал)
+   ===================================================================== */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = x => Number(x).toLocaleString('ru-RU');
+const pad = (x, n = 2) => String(x).padStart(n, '0');
+function fmtTime(ms) {
+  if (ms < 1000) return Math.round(ms) + ' мс';
+  if (ms < 60000) return (ms / 1000).toFixed(1).replace('.', ',') + ' с';
+  return Math.floor(ms / 60000) + ' мин ' + Math.round((ms % 60000) / 1000) + ' с';
+}
+function fmtSize(b) {
+  if (b < 1024) return b + ' Б';
+  const u = ['КБ', 'МБ', 'ГБ', 'ТБ']; let i = -1;
+  do { b /= 1024; i++; } while (b >= 1024 && i < u.length - 1);
+  return b.toFixed(b < 10 ? 2 : 1).replace('.', ',') + ' ' + u[i];
+}
+function fmtDate(ms) {
+  const d = new Date(ms);
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+const fmtDateMs = ms => fmtDate(ms) + ',' + pad(((ms % 1000) + 1000) % 1000, 3);
+function extOf(p) {
+  const name = p.slice(p.lastIndexOf('/') + 1);
+  const i = name.lastIndexOf('.');
+  return i > 0 ? name.slice(i + 1).toLowerCase() : '';
+}
+const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' });
+
+function explainError(e) {
+  const n = (e && e.name) || 'Error';
+  const map = {
+    NotAllowedError: 'Нет разрешения на чтение. Нажмите «Сканировать» ещё раз и в окне Chrome разрешите доступ.',
+    NotFoundError: 'Папка или файл не найдены: переименованы, удалены или сетевой диск отключён.',
+    NotReadableError: 'Не удаётся прочитать: файл занят другой программой или прервалась связь с сервером.',
+    SecurityError: 'Chrome запретил доступ (системная папка, политика безопасности или запрос без нажатия кнопки).',
+    InvalidStateError: 'Содержимое папки изменилось во время чтения. Повторите обход.',
+    TypeMismatchError: 'Ожидалась папка, а выбран файл (или наоборот).'
+  };
+  return (map[n] || 'Непредвиденная ошибка.') + ' [' + n + ': ' + ((e && e.message) || '') + ']';
+}
+
+const logLines = [];
+function log(text) {
+  const d = new Date();
+  logLines.push(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}  ${text}`);
+  if (logLines.length > 500) logLines.shift();
+  const el = document.getElementById('log');
+  el.textContent = logLines.join('\n');
+  el.scrollTop = el.scrollHeight;
+}
+
+/* =====================================================================
+   БЛОК 5. АНАЛИЗ РЕЗУЛЬТАТОВ (одна сторона и пары по одинаковому пути)
+   ===================================================================== */
+function analyzeSide(r) {
+  let size = 0, zero = 0, msNon0 = 0, even2 = 0, minM = Infinity, maxM = -Infinity, future = 0;
+  const lim = Date.now() + 86400000;
+  const ext = new Map();
+  for (const x of r.files) {
+    size += x.s;
+    if (!x.s) zero++;
+    if (x.m % 1000) msNon0++;
+    else if (Math.floor(x.m / 1000) % 2 === 0) even2++;
+    if (x.m < minM) minM = x.m;
+    if (x.m > maxM) maxM = x.m;
+    if (x.m > lim) future++;
+    const e = extOf(x.p);
+    ext.set(e, (ext.get(e) || 0) + 1);
+  }
+  const n = r.files.length || 1;
+  const topExt = [...ext.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
+    .map(([e, c]) => (e ? '.' + e : '(без расширения)') + ' — ' + num(c));
+  return {
+    size, zero, future, minM, maxM, topExt,
+    msPct: (msNon0 / n * 100).toFixed(1), even2Pct: (even2 / n * 100).toFixed(1),
+    speed: r.tTotal ? Math.round(r.files.length / (r.tTotal / 1000)) : 0
+  };
+}
+
+const BUCKETS = [
+  { t: '0 (точное совпадение)', f: d => d === 0 },
+  { t: 'до 1 с', f: d => d < 1000 },
+  { t: '1–2 с', f: d => d <= 2000 },
+  { t: '≈1 ч (±2 с): часовой пояс / летнее время', f: d => Math.abs(d - 3600000) <= 2000 },
+  { t: '≈2 ч (±2 с)', f: d => Math.abs(d - 7200000) <= 2000 },
+  { t: '≈3 ч (±2 с)', f: d => Math.abs(d - 10800000) <= 2000 },
+  { t: '2 с – 1 мин', f: d => d <= 60000 },
+  { t: '1 мин – 1 ч', f: d => d <= 3600000 },
+  { t: '1 ч – 1 сутки', f: d => d <= 86400000 },
+  { t: 'больше суток', f: () => true }
+];
+
+function analyzePairs(a, b) {
+  const mapA = new Map();
+  for (const x of a.files) mapA.set(x.p.toLowerCase(), x);
+  const seen = new Set();
+  let both = 0, onlyB = 0, sameSize = 0, caseDiff = 0;
+  const buckets = BUCKETS.map(bk => ({ t: bk.t, same: 0, diff: 0 }));
+  const ex = [];
+  for (const y of b.files) {
+    const k = y.p.toLowerCase();
+    const x = mapA.get(k);
+    if (!x) { onlyB++; continue; }
+    seen.add(k); both++;
+    if (x.p !== y.p) caseDiff++;
+    const d = Math.abs(y.m - x.m);
+    const same = x.s === y.s;
+    if (same) sameSize++;
+    const bi = BUCKETS.findIndex(bk => bk.f(d));
+    buckets[bi][same ? 'same' : 'diff']++;
+    if (same && d > 0) ex.push({ p: y.p, d, ma: x.m, mb: y.m });
+  }
+  ex.sort((p, q) => p.d - q.d);
+  return { both, onlyA: a.files.length - seen.size, onlyB, sameSize, caseDiff, buckets, ex: ex.slice(0, 25), exTotal: ex.length };
+}
+
+/* =====================================================================
+   БЛОК 6. ИНТЕРФЕЙС
+   ===================================================================== */
+const SUPPORTED = 'showDirectoryPicker' in window;
+const APP_VERSION = 'v0.2';
+const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
+  ? 'установленное приложение' : 'вкладка браузера';
+const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
+
+function sideHTML(id) {
+  return `<div class="card" id="side-${id}">
+    <h2>${SIDE_TITLES[id]}</h2>
+    <div class="row">
+      <button data-act="pick">Выбрать папку…</button>
+      <button data-act="reopen" disabled>Открыть последнюю</button>
+      <button data-act="scan" class="primary" disabled>Сканировать</button>
+      <button data-act="cancel" disabled>Отмена</button>
+      <button data-act="csv" disabled>Список в CSV</button>
+    </div>
+    <div class="row"><span class="muted">Папка:</span><span class="path" data-f="name">не выбрана</span></div>
+    <div data-f="msg"></div>
+    <div data-f="prog" hidden><div class="bar"><div></div></div><div class="muted path" data-f="progtext"></div></div>
+    <div data-f="stats"></div>
+    <div data-f="table"></div>
+  </div>`;
+}
+document.getElementById('sides').innerHTML = sideHTML('A') + sideHTML('B');
+
+function mkSide(id) {
+  const el = document.getElementById('side-' + id);
+  return {
+    id, el, handle: null, saved: null, result: null, job: null, sorted: null,
+    q: f => el.querySelector(`[data-f="${f}"]`),
+    btn: a => el.querySelector(`[data-act="${a}"]`)
+  };
+}
+const S = { A: mkSide('A'), B: mkSide('B') };
+const sides = [S.A, S.B];
+
+function showMsg(s, kind, text) { s.q('msg').innerHTML = `<div class="msg ${kind}">${esc(text)}</div>`; }
+function clearMsg(s) { s.q('msg').innerHTML = ''; }
+
+function refreshButtons() {
+  for (const s of sides) {
+    s.btn('pick').disabled = !!s.job || !SUPPORTED;
+    s.btn('reopen').disabled = !!s.job || !s.saved;
+    s.btn('scan').disabled = !!s.job || !s.handle;
+    s.btn('cancel').disabled = !s.job;
+    s.btn('csv').disabled = !!s.job || !s.result;
+    s.btn('reopen').textContent = s.saved ? `Открыть последнюю: «${s.saved.name}»` : 'Открыть последнюю';
+  }
+  document.getElementById('btnBoth').disabled = !(S.A.handle && S.B.handle) || !!S.A.job || !!S.B.job;
+}
+
+function setHandle(s, h) {
+  s.handle = h;
+  s.result = null; s.sorted = null;
+  s.q('name').textContent = h.name;
+  s.q('stats').innerHTML = ''; s.q('table').innerHTML = ''; s.q('prog').hidden = true;
+  clearMsg(s);
+  renderPairs(); refreshButtons();
+}
+
+async function pick(s) {
+  try {
+    const h = await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
+    setHandle(s, h);
+    s.saved = h;
+    try { await IDB.put(s.id, h); } catch (e) { log(`${s.id}: не удалось запомнить папку (${e.name})`); }
+    log(`${s.id}: выбрана папка «${h.name}»`);
+    refreshButtons();
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    showMsg(s, 'err', explainError(e));
+    log(`${s.id}: ошибка выбора папки — ${e.name}: ${e.message}`);
+  }
+}
+
+async function ensurePermission(s, h) {
+  const o = { mode: 'read' };
+  let st = await h.queryPermission(o);
+  log(`${s.id}: разрешение для «${h.name}» сейчас: ${st}`);
+  if (st === 'granted') return true;
+  st = await h.requestPermission(o);
+  log(`${s.id}: запрос разрешения → ${st}`);
+  return st === 'granted';
+}
+
+async function permOrMsg(s, h) {
+  try {
+    if (await ensurePermission(s, h)) return true;
+    showMsg(s, 'warn', 'Доступ не разрешён. Нажмите кнопку ещё раз и в окне Chrome выберите «Разрешить» (или «Просмотреть файлы»).');
+  } catch (e) {
+    showMsg(s, 'err', 'Chrome не дал запросить разрешение. Нажмите «Сканировать» у этой папки отдельно. ' + explainError(e));
+    log(`${s.id}: запрос разрешения не выполнен — ${e.name}: ${e.message}`);
+  }
+  return false;
+}
+
+async function reopen(s) {
+  if (!s.saved) return;
+  clearMsg(s);
+  if (await permOrMsg(s, s.saved)) { setHandle(s, s.saved); log(`${s.id}: открыта последняя папка «${s.saved.name}»`); }
+}
+
+function showProgress(s, pr) {
+  const box = s.q('prog'); box.hidden = false;
+  const bar = box.querySelector('.bar');
+  let t;
+  if (pr.phase === 'list') {
+    bar.classList.add('indet'); bar.firstElementChild.style.width = '';
+    t = `Чтение списка: файлов ${num(pr.found)}, подпапок ${num(pr.dirs)} · ${fmtTime(pr.elapsed)}`;
+  } else {
+    bar.classList.remove('indet');
+    const pct = pr.found ? pr.done / pr.found * 100 : 100;
+    bar.firstElementChild.style.width = pct + '%';
+    t = `Чтение размеров и дат: ${num(pr.done)} из ${num(pr.found)} (${pct.toFixed(0)}%) · ${fmtTime(pr.elapsed)}`;
+  }
+  if (pr.errors) t += ` · ошибок: ${pr.errors}`;
+  if (pr.cur) t += '\n' + (pr.cur.length > 90 ? '…' + pr.cur.slice(-90) : pr.cur);
+  s.q('progtext').textContent = t;
+}
+
+async function scan(s, skipPerm) {
+  if (!s.handle || s.job) return;
+  clearMsg(s);
+  if (!skipPerm && !(await permOrMsg(s, s.handle))) return;
+  s.result = null; s.sorted = null;
+  s.q('stats').innerHTML = ''; s.q('table').innerHTML = '';
+  renderPairs();
+  const opts = { conc: settings.conc, mode: settings.mode };
+  const job = runScan(s.handle, opts, pr => showProgress(s, pr), m => log(`${s.id}: ${m}`));
+  s.job = job; refreshButtons();
+  showProgress(s, { phase: 'list', found: 0, dirs: 0, elapsed: 0 });
+  log(`${s.id}: старт обхода «${s.handle.name}», потоков чтения: ${opts.conc}`);
+  try {
+    const res = await job.promise;
+    if (!res) {
+      showMsg(s, 'warn', 'Обход отменён.');
+      log(`${s.id}: обход отменён`);
+    } else {
+      res.mode = job.mode; res.root = s.handle.name; res.when = Date.now();
+      s.result = res;
+      s.sorted = res.files.slice().sort((x, y) => collator.compare(x.p, y.p));
+      log(`${s.id}: готово (${job.mode}) — файлов ${num(res.files.length)}, подпапок ${num(res.dirs)}, ${fmtTime(res.tTotal)}, ошибок ${res.errors.length}`);
+      if (res.errors.length) showMsg(s, 'warn', `Часть элементов не прочитана: ${res.errors.length}. Подробности ниже.`);
+      else showMsg(s, 'ok', 'Обход завершён без ошибок.');
+    }
+  } catch (e) {
+    showMsg(s, 'err', explainError(e));
+    log(`${s.id}: ошибка обхода — ${e.name}: ${e.message}`);
+  } finally {
+    s.job = null;
+    s.q('prog').hidden = true;
+    renderStats(s); renderTable(s); renderPairs(); refreshButtons();
+  }
+}
+
+async function scanBoth() {
+  // Сначала оба разрешения (пока действует нажатие кнопки), потом обход по очереди
+  for (const s of sides) if (!(await permOrMsg(s, s.handle))) return;
+  for (const s of sides) await scan(s, true);
+}
+
+function renderStats(s) {
+  const r = s.result;
+  if (!r) { s.q('stats').innerHTML = ''; return; }
+  const a = analyzeSide(r);
+  const rows = [
+    ['Режим обхода', r.mode],
+    ['Файлов', num(r.files.length)],
+    ['Подпапок', num(r.dirs)],
+    ['Общий объём', fmtSize(a.size)],
+    ['Пустых файлов (0 Б)', num(a.zero)],
+    ['Время: список', fmtTime(r.tList)],
+    ['Время: размеры и даты', `${fmtTime(r.tMeta)} (потоков: ${r.conc})`],
+    ['Время: всего', fmtTime(r.tTotal)],
+    ['Скорость', num(a.speed) + ' файлов/с'],
+    ['Самая старая дата', r.files.length ? fmtDate(a.minM) : '—'],
+    ['Самая новая дата', r.files.length ? fmtDate(a.maxM) : '—'],
+    ['Даты в будущем', num(a.future)],
+    ['Даты с миллисекундами', a.msPct + '%'],
+    ['Даты, кратные 2 с', a.even2Pct + '%'],
+    ['Ошибок чтения', num(r.errors.length)]
+  ];
+  let h = '<div class="stat">' + rows.map(([k, v]) => `<div>${esc(k)}</div><div>${esc(v)}</div>`).join('') + '</div>';
+  h += `<div class="row muted">Расширения: ${esc(a.topExt.join(', ') || '—')}</div>`;
+  if (r.errors.length) {
+    h += `<details><summary>Ошибки (${r.errors.length})</summary><div class="scroll"><table>
+      <tr><th>Путь</th><th>Действие</th><th>Ошибка</th></tr>` +
+      r.errors.slice(0, 300).map(e => `<tr><td class="path">${esc(e.p)}</td><td>${esc(e.op)}</td><td>${esc(e.e)}</td></tr>`).join('') +
+      '</table></div></details>';
+  }
+  s.q('stats').innerHTML = h;
+}
+
+function renderTable(s) {
+  if (!s.sorted) { s.q('table').innerHTML = ''; return; }
+  const list = s.sorted.slice(0, 300);
+  s.q('table').innerHTML = `<details><summary>Файлы (первые ${list.length} из ${num(s.sorted.length)}, по пути)</summary>
+    <div class="scroll"><table><tr><th>Путь</th><th class="num">Размер</th><th class="num">Дата изменения</th></tr>` +
+    list.map(x => `<tr><td class="path">${esc(x.p)}</td><td class="num">${num(x.s)}</td><td class="num">${fmtDateMs(x.m)}</td></tr>`).join('') +
+    '</table></div></details>';
+}
+
+function renderPairs() {
+  const box = document.getElementById('pairs');
+  if (!S.A.result || !S.B.result) { box.className = 'muted'; box.innerHTML = 'Появится после обхода обеих папок.'; return; }
+  box.className = '';
+  const p = analyzePairs(S.A.result, S.B.result);
+  let h = `<p class="muted">Это не сравнение, а подсказка для выбора допуска по дате. Пары найдены по одинаковому пути (без учёта регистра).</p>
+  <div class="stat">
+    <div>Общих путей</div><div>${num(p.both)}${p.caseDiff ? ` (из них регистр букв отличается: ${num(p.caseDiff)})` : ''}</div>
+    <div>Только слева</div><div>${num(p.onlyA)}</div>
+    <div>Только справа</div><div>${num(p.onlyB)}</div>
+    <div>Общих с одинаковым размером</div><div>${num(p.sameSize)}</div>
+  </div>
+  <h2 style="margin-top:14px">Разница дат у общих файлов</h2>
+  <div class="scroll"><table><tr><th>Разница</th><th class="num">Размер одинаковый</th><th class="num">Размер разный</th></tr>` +
+    p.buckets.map(b => `<tr><td>${esc(b.t)}</td><td class="num">${num(b.same)}</td><td class="num">${num(b.diff)}</td></tr>`).join('') +
+    '</table></div>';
+  if (p.ex.length) {
+    h += `<details><summary>Примеры: размер одинаковый, дата отличается (${p.ex.length} из ${num(p.exTotal)}, от меньшей разницы)</summary>
+    <div class="scroll"><table><tr><th>Путь</th><th class="num">Слева</th><th class="num">Справа</th><th class="num">Разница</th></tr>` +
+      p.ex.map(e => `<tr><td class="path">${esc(e.p)}</td><td class="num">${fmtDateMs(e.ma)}</td><td class="num">${fmtDateMs(e.mb)}</td><td class="num">${fmtTime(e.d)}</td></tr>`).join('') +
+      '</table></div></details>';
+  }
+  box.innerHTML = h;
+}
+
+/* --- Экспорт и отчёт --- */
+function exportCsv(s) {
+  const r = s.result; if (!r) return;
+  const qq = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = ['Путь;Размер, байт;Дата изменения;Миллисекунды;Расширение'];
+  for (const x of s.sorted) lines.push([qq(x.p), x.s, fmtDate(x.m), ((x.m % 1000) + 1000) % 1000, qq(extOf(x.p))].join(';'));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `список_${s.id}_${r.root.replace(/[\\/:*?"<>|]/g, '_')}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  log(`${s.id}: список выгружен в CSV`);
+}
+
+function buildReport() {
+  const L = [];
+  const chrome = (navigator.userAgent.match(/Chrome\/[\d.]+/) || ['не определён'])[0];
+  L.push('Сравнение папок — этап 0, отчёт разведки');
+  L.push('Дата: ' + fmtDate(Date.now()));
+  L.push('Версия: ' + APP_VERSION + ' · браузер: ' + chrome + ' · открыто как: ' + location.protocol + ' · ' + launchMode());
+  L.push('Настройки: потоков ' + settings.conc + ', режим ' + (settings.mode === 'main' ? 'основной поток' : 'авто (Worker)'));
+  for (const s of sides) {
+    L.push('');
+    L.push(`--- ${SIDE_TITLES[s.id]}: ${s.handle ? '«' + s.handle.name + '»' : 'папка не выбрана'}`);
+    const r = s.result;
+    if (!r) { L.push('Результата нет'); continue; }
+    const a = analyzeSide(r);
+    L.push(`Режим: ${r.mode}`);
+    L.push(`Файлов ${r.files.length}, подпапок ${r.dirs}, объём ${fmtSize(a.size)}, пустых ${a.zero}`);
+    L.push(`Время: список ${fmtTime(r.tList)}, размеры/даты ${fmtTime(r.tMeta)}, всего ${fmtTime(r.tTotal)} (${a.speed} файлов/с, потоков ${r.conc})`);
+    L.push(`Даты: с мс ${a.msPct}%, кратные 2 с ${a.even2Pct}%, от ${r.files.length ? fmtDate(a.minM) : '—'} до ${r.files.length ? fmtDate(a.maxM) : '—'}, в будущем ${a.future}`);
+    L.push(`Расширения: ${a.topExt.join(', ')}`);
+    L.push(`Ошибок: ${r.errors.length}`);
+    r.errors.slice(0, 10).forEach(e => L.push(`  ${e.op}: ${e.p} — ${e.e}`));
+  }
+  if (S.A.result && S.B.result) {
+    const p = analyzePairs(S.A.result, S.B.result);
+    L.push('');
+    L.push('--- Пары по одинаковому пути');
+    L.push(`Общих ${p.both} (регистр отличается ${p.caseDiff}), только слева ${p.onlyA}, только справа ${p.onlyB}, с одинаковым размером ${p.sameSize}`);
+    L.push('Разница дат: [размер одинаковый / разный]');
+    p.buckets.forEach(b => { if (b.same || b.diff) L.push(`  ${b.t}: ${b.same} / ${b.diff}`); });
+    p.ex.slice(0, 10).forEach(e => L.push(`  пример: ${e.p} — ${fmtTime(e.d)}`));
+  }
+  L.push('');
+  L.push('--- Журнал (последние 40 строк)');
+  logLines.slice(-40).forEach(x => L.push(x));
+  return L.join('\n');
+}
+
+async function copyReport() {
+  const ta = document.getElementById('reportText');
+  const st = document.getElementById('copyState');
+  try { await navigator.clipboard.writeText(ta.value); st.textContent = 'Скопировано'; }
+  catch (e) {
+    ta.focus(); ta.select();
+    st.textContent = document.execCommand('copy') ? 'Скопировано' : 'Выделите текст и нажмите Ctrl+C';
+  }
+}
+
+/* --- Подключение событий и старт --- */
+for (const s of sides) {
+  s.btn('pick').onclick = () => pick(s);
+  s.btn('reopen').onclick = () => reopen(s);
+  s.btn('scan').onclick = () => scan(s);
+  s.btn('cancel').onclick = () => { if (s.job) s.job.cancel(); };
+  s.btn('csv').onclick = () => exportCsv(s);
+}
+document.getElementById('btnBoth').onclick = scanBoth;
+document.getElementById('btnReport').onclick = () => {
+  document.getElementById('reportBox').hidden = false;
+  document.getElementById('reportText').value = buildReport();
+  document.getElementById('copyState').textContent = '';
+};
+document.getElementById('btnCopy').onclick = copyReport;
+
+const selConc = document.getElementById('setConc');
+const selMode = document.getElementById('setMode');
+selConc.value = String(settings.conc);
+if (selConc.value !== String(settings.conc)) { settings.conc = 8; selConc.value = '8'; }
+selMode.value = settings.mode;
+selConc.onchange = () => { settings.conc = +selConc.value; saveSettings(); log('Потоков чтения: ' + settings.conc); };
+selMode.onchange = () => { settings.mode = selMode.value; saveSettings(); log('Режим обхода: ' + selMode.options[selMode.selectedIndex].text); };
+
+(async function init() {
+  if (!SUPPORTED) {
+    document.getElementById('globalMsg').innerHTML =
+      '<div class="msg err">Этот браузер не даёт доступ к папкам. Откройте файл в Google Chrome (или Edge) на ПК.</div>';
+  }
+  log(`Запуск ${APP_VERSION}. Открыто как ${location.protocol}, ${launchMode()}, доступ к папкам: ${SUPPORTED ? 'есть' : 'нет'}`);
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => log('Работа без интернета: включена'))
+      .catch(e => log('Работа без интернета не включилась: ' + e.name));
+  }
+  for (const s of sides) {
+    try {
+      const h = await IDB.get(s.id);
+      if (h) { s.saved = h; log(`${s.id}: найдена последняя папка «${h.name}»`); }
+    } catch (e) { log(`${s.id}: память папок недоступна (${e.name})`); }
+  }
+  refreshButtons();
+})();
+</script>
+</body>
+</html>
