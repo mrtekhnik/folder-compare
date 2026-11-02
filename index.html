@@ -43,6 +43,8 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
 .msg.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
 .msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+#updateBanner{position:sticky;top:0;z-index:10;margin-bottom:14px}
+#updateBanner .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;font-size:14px}
 #log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px}
 textarea{width:100%;height:280px;font-family:Consolas,monospace;font-size:12px}
 select{font:inherit;padding:3px}
@@ -52,7 +54,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.2 (PWA)</span>
+  <span class="ver">этап 0 · разведка · v0.3 (PWA)</span>
   <label>Потоков чтения свойств:
     <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
   </label>
@@ -61,6 +63,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
   </label>
 </header>
 <main>
+  <div id="updateBanner" hidden></div>
   <div id="globalMsg"></div>
 
   <div class="sides" id="sides"></div>
@@ -389,7 +392,7 @@ function analyzePairs(a, b) {
    БЛОК 6. ИНТЕРФЕЙС
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.2';
+const APP_VERSION = 'v0.3';
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
 const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
@@ -675,6 +678,36 @@ async function copyReport() {
     st.textContent = document.execCommand('copy') ? 'Скопировано' : 'Выделите текст и нажмите Ctrl+C';
   }
 }
+
+/* --- Проверка обновлений --- */
+let shownUpdate = '';
+async function checkUpdate() {
+  if (location.protocol !== 'https:') return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const v = (await r.json()).version;
+    if (!v || v === APP_VERSION || v === shownUpdate) return;
+    shownUpdate = v;
+    const b = document.getElementById('updateBanner');
+    b.innerHTML = `<div class="msg"><span>Доступна новая версия <b>${esc(v)}</b> (у вас ${esc(APP_VERSION)}).</span>
+      <button class="primary" id="btnUpdate">Обновить</button></div>`;
+    b.hidden = false;
+    document.getElementById('btnUpdate').onclick = applyUpdate;
+    log('Найдена новая версия ' + v);
+  } catch (e) { /* нет сети — проверим позже */ }
+}
+async function applyUpdate() {
+  if (sides.some(s => s.job) && !confirm('Идёт обход папки. Обновить сейчас? Обход прервётся.')) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) await reg.update();
+  } catch (e) {}
+  location.reload();
+}
+setTimeout(checkUpdate, 3000);
+setInterval(checkUpdate, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 /* --- Подключение событий и старт --- */
 for (const s of sides) {
