@@ -54,7 +54,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.3 (PWA)</span>
+  <span class="ver">этап 0 · разведка · v0.4 (PWA)</span>
   <label>Потоков чтения свойств:
     <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
   </label>
@@ -371,10 +371,11 @@ function analyzePairs(a, b) {
   let both = 0, onlyB = 0, sameSize = 0, caseDiff = 0;
   const buckets = BUCKETS.map(bk => ({ t: bk.t, same: 0, diff: 0 }));
   const ex = [];
+  const L = { onlyA: [], onlyB: [], sizeDiff: [], dateDiff: [] };
   for (const y of b.files) {
     const k = y.p.toLowerCase();
     const x = mapA.get(k);
-    if (!x) { onlyB++; continue; }
+    if (!x) { onlyB++; L.onlyB.push(y); continue; }
     seen.add(k); both++;
     if (x.p !== y.p) caseDiff++;
     const d = Math.abs(y.m - x.m);
@@ -383,16 +384,21 @@ function analyzePairs(a, b) {
     const bi = BUCKETS.findIndex(bk => bk.f(d));
     buckets[bi][same ? 'same' : 'diff']++;
     if (same && d > 0) ex.push({ p: y.p, d, ma: x.m, mb: y.m });
+    if (!same) L.sizeDiff.push({ p: y.p, a: x, b: y });
+    else if (d > 0) L.dateDiff.push({ p: y.p, a: x, b: y });
   }
+  for (const x of a.files) if (!seen.has(x.p.toLowerCase())) L.onlyA.push(x);
+  const byPath = (u, v) => collator.compare(u.p, v.p);
+  for (const k in L) L[k].sort(byPath);
   ex.sort((p, q) => p.d - q.d);
-  return { both, onlyA: a.files.length - seen.size, onlyB, sameSize, caseDiff, buckets, ex: ex.slice(0, 25), exTotal: ex.length };
+  return { L, both, onlyA: a.files.length - seen.size, onlyB, sameSize, caseDiff, buckets, ex: ex.slice(0, 25), exTotal: ex.length };
 }
 
 /* =====================================================================
    БЛОК 6. ИНТЕРФЕЙС
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.3';
+const APP_VERSION = 'v0.4';
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
 const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
@@ -615,6 +621,19 @@ function renderPairs() {
       p.ex.map(e => `<tr><td class="path">${esc(e.p)}</td><td class="num">${fmtDateMs(e.ma)}</td><td class="num">${fmtDateMs(e.mb)}</td><td class="num">${fmtTime(e.d)}</td></tr>`).join('') +
       '</table></div></details>';
   }
+  h += '<h2 style="margin-top:14px">Какие файлы отличаются</h2>' +
+    '<p class="muted">Предварительно, по одинаковому пути. Полное сравнение с правилами появится на этапе 1.</p>';
+  const cmpRows = arr => arr.map(e => `<tr><td class="path">${esc(e.p)}</td><td class="num">${num(e.a.s)}</td><td class="num">${num(e.b.s)}</td><td class="num">${fmtDate(e.a.m)}</td><td class="num">${fmtDate(e.b.m)}</td></tr>`).join('');
+  const cmpHead = '<tr><th>Путь</th><th class="num">Размер A</th><th class="num">Размер B</th><th class="num">Дата A</th><th class="num">Дата B</th></tr>';
+  const oneRows = arr => arr.map(x => `<tr><td class="path">${esc(x.p)}</td><td class="num">${num(x.s)}</td><td class="num">${fmtDate(x.m)}</td></tr>`).join('');
+  const oneHead = '<tr><th>Путь</th><th class="num">Размер</th><th class="num">Дата</th></tr>';
+  const block = (title, arr, head, rows, open) => arr.length
+    ? `<details${open ? ' open' : ''}><summary>${esc(title)} (${num(arr.length)})</summary><div class="scroll"><table>${head}${rows(arr.slice(0, 2000))}</table></div></details>`
+    : `<div class="muted" style="margin:6px 0">${esc(title)}: нет</div>`;
+  h += block('Размер отличается', p.L.sizeDiff, cmpHead, cmpRows, true);
+  h += block('Размер одинаковый, дата отличается', p.L.dateDiff, cmpHead, cmpRows, true);
+  h += block('Только слева (A)', p.L.onlyA, oneHead, oneRows, true);
+  h += block('Только справа (B)', p.L.onlyB, oneHead, oneRows, true);
   box.innerHTML = h;
 }
 
@@ -662,6 +681,11 @@ function buildReport() {
     L.push('Разница дат: [размер одинаковый / разный]');
     p.buckets.forEach(b => { if (b.same || b.diff) L.push(`  ${b.t}: ${b.same} / ${b.diff}`); });
     p.ex.slice(0, 10).forEach(e => L.push(`  пример: ${e.p} — ${fmtTime(e.d)}`));
+    const lst = (t, arr) => { L.push(`${t}: ${arr.length}`); arr.slice(0, 50).forEach(e => L.push('  ' + e.p)); if (arr.length > 50) L.push('  …'); };
+    lst('Размер отличается', p.L.sizeDiff);
+    lst('Размер одинаковый, дата отличается', p.L.dateDiff);
+    lst('Только слева', p.L.onlyA);
+    lst('Только справа', p.L.onlyB);
   }
   L.push('');
   L.push('--- Журнал (последние 40 строк)');

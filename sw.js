@@ -1,5 +1,5 @@
 // Работа без интернета. При обновлении приложения меняйте VERSION.
-const VERSION = 'sravnenie-v0.3';
+const VERSION = 'sravnenie-v0.4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
