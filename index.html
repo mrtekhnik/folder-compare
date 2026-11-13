@@ -3,66 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Сравнение папок — этап 0</title>
+<title>Сравнение папок и файлов</title>
 <meta name="theme-color" content="#1f2937">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--text:#1d2330;--muted:#667085;--line:#d9dde3;--accent:#2563eb}
+:root{
+  --bg:#f4f5f7;--card:#fff;--text:#1d2330;--muted:#667085;--line:#d9dde3;--accent:#2563eb;
+  --same:#6b7280;--chg-bg:#fff7e6;--chg:#b45309;--new-bg:#ecfdf5;--new:#047857;--del-bg:#fef2f2;--del:#b91c1c;
+}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
 header{padding:10px 20px;background:#1f2937;color:#fff;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 header h1{font-size:17px;margin:0;font-weight:600}
 header .ver{color:#9ca3af;font-size:12px}
-header label{font-size:13px;color:#d1d5db}
-header select{margin-left:4px}
-main{padding:16px 20px;max-width:1500px;margin:0 auto}
+main{padding:16px 20px;max-width:1600px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
-.card h2{font-size:15px;margin:0 0 10px}
+.card h2{font-size:15px;margin:0 0 8px}
+.card.drop{outline:3px dashed var(--accent);outline-offset:-6px;background:#eff6ff}
 .sides{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:1000px){.sides{grid-template-columns:1fr}}
-button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer}
+button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;color:inherit}
 button:hover:not(:disabled){border-color:var(--accent)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button:disabled{opacity:.45;cursor:default}
+button.small{padding:3px 8px;font-size:13px}
+a{color:var(--accent)}
+input[type=text],input[type=number],input[type=search],select{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:5px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
 .muted{color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin:2px 0 4px}
 .path{font-family:Consolas,monospace;font-size:12.5px;word-break:break-all}
 .bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:8px 0 4px}
 .bar>div{height:100%;background:var(--accent);width:0}
 .bar.indet>div{width:30%;animation:ind 1.2s linear infinite}
 @keyframes ind{from{margin-left:-30%}to{margin-left:100%}}
-table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
-th{background:#f9fafb;font-weight:600;position:sticky;top:0}
-td.num,th.num{text-align:right;white-space:nowrap}
-.scroll{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:6px}
-.stat{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin-top:8px}
-.stat>div:nth-child(odd){color:var(--muted)}
 .msg{padding:8px 10px;border-radius:6px;margin:6px 0;font-size:13px}
 .msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
 .msg.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
 .msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.msg.info{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe}
+.msg button{margin-left:8px}
+.stats{font-size:13px;color:var(--muted);margin-top:4px}
+.stats b{color:var(--text);font-weight:600}
+details>summary{cursor:pointer;font-weight:600}
+details.card>summary{font-size:15px}
 #updateBanner{position:sticky;top:0;z-index:10;margin-bottom:14px}
-#updateBanner .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;font-size:14px}
-.card.drop{outline:3px dashed var(--accent);outline-offset:-6px;background:#eff6ff}
-.hint{font-size:12.5px;color:var(--muted);margin:2px 0 4px}
-#log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px}
-textarea{width:100%;height:280px;font-family:Consolas,monospace;font-size:12px}
-select{font:inherit;padding:3px}
-details summary{cursor:pointer;font-weight:600;margin:8px 0}
+#updateBanner .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
+#log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:8px}
+textarea{width:100%;height:260px;font-family:Consolas,monospace;font-size:12px}
+
+/* Настройки */
+.set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:10px}
+.set-grid h3{font-size:14px;margin:0 0 6px}
+.excl-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}
+.excl-item{display:flex;gap:6px;align-items:center}
+.excl-item input[type=text]{flex:1;font-family:Consolas,monospace;font-size:13px}
+.excl-item.off input[type=text]{color:var(--muted);text-decoration:line-through}
+
+/* Результаты */
+.summary{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer;user-select:none;background:#fff}
+.chip b{font-weight:600}
+.chip.off{opacity:.4;text-decoration:line-through}
+.chip.same{color:var(--same)} .chip.chg{color:var(--chg);background:var(--chg-bg)}
+.chip.new{color:var(--new);background:var(--new-bg)} .chip.del{color:var(--del);background:var(--del-bg)}
+.vwrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin-top:10px}
+.vtable{min-width:980px}
+.vhead,.vr.f{display:grid;grid-template-columns:120px minmax(240px,1fr) 100px 100px 150px 150px 90px}
+.vhead{background:#f9fafb;font-weight:600;font-size:13px;border-bottom:1px solid var(--line)}
+.vhead>div,.vr.f>div{padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vhead>div{padding-top:6px;padding-bottom:6px}
+.vp{height:62vh;min-height:300px;overflow-y:auto;position:relative}
+.vinner{position:relative}
+.vcontent{position:absolute;left:0;right:0;top:0}
+.vr{height:28px;line-height:28px;font-size:13px;border-bottom:1px solid #eef0f3}
+.vr.g{display:flex;gap:6px;padding:0 8px;background:#f3f4f6;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden}
+.vr.g .tw{width:14px;display:inline-block;color:var(--muted)}
+.vr.f .num{text-align:right;font-variant-numeric:tabular-nums}
+.vr.f .nm{padding-left:22px}
+.vr.st-same{color:var(--same)}
+.vr.st-chg{background:var(--chg-bg)} .vr.st-chg .stc{color:var(--chg);font-weight:600}
+.vr.st-new{background:var(--new-bg)} .vr.st-new .stc{color:var(--new);font-weight:600}
+.vr.st-del{background:var(--del-bg)} .vr.st-del .stc{color:var(--del);font-weight:600}
+.vr .dif{font-weight:700;color:var(--text)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+table.diag{border-collapse:collapse;font-size:13px;margin-top:8px}
+table.diag td,table.diag th{border-bottom:1px solid var(--line);padding:3px 10px;text-align:left}
+table.diag td.num{text-align:right}
 </style>
 </head>
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.7 (PWA)</span>
-  <label>Потоков чтения свойств:
-    <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
-  </label>
-  <label>Режим обхода:
-    <select id="setMode"><option value="auto">фоновый (Web Worker)</option><option value="main">основной поток (для сравнения)</option></select>
-  </label>
+  <span class="ver" id="verLabel">этап 1</span>
 </header>
 <main>
   <div id="updateBanner" hidden></div>
@@ -72,8 +106,9 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 
   <div class="card">
     <div class="row">
-      <button id="btnBoth" class="primary">Сканировать обе папки</button>
+      <button id="btnCompare" class="primary">Сканировать и сравнить</button>
       <button id="btnReport">Отчёт для чата</button>
+      <span class="muted" id="compareHint"></span>
     </div>
     <div id="reportBox" hidden>
       <p class="muted">Скопируйте этот текст и вставьте в чат с замечаниями.</p>
@@ -82,31 +117,85 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
     </div>
   </div>
 
-  <div class="card">
-    <h2>Диагностика дат по одинаковым путям (A ↔ B)</h2>
-    <div id="pairs" class="muted">Появится после обхода обеих папок.</div>
+  <details class="card" id="settingsCard">
+    <summary>Настройки сравнения</summary>
+    <div class="set-grid">
+      <div>
+        <h3>Критерии</h3>
+        <div class="row"><label><input type="checkbox" checked disabled> Относительный путь и имя (всегда)</label></div>
+        <div class="row"><label><input type="checkbox" id="cSize"> Размер</label></div>
+        <div class="row"><label><input type="checkbox" id="cDate"> Дата изменения, допуск</label>
+          <input type="number" id="cTol" min="0" max="86400" step="1" style="width:80px"> <span class="muted">с</span></div>
+        <div class="hint">Даты, отличающиеся не больше допуска, считаются одинаковыми.</div>
+        <h3 style="margin-top:14px">Только расширения</h3>
+        <input type="text" id="cExt" placeholder="например: dxf, pdf (пусто — все файлы)" style="width:100%">
+        <h3 style="margin-top:14px">Обход</h3>
+        <div class="row">
+          <label>Потоков чтения <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select></label>
+          <label>Режим <select id="setMode"><option value="auto">фоновый (Web Worker)</option><option value="main">основной поток</option></select></label>
+        </div>
+      </div>
+      <div>
+        <h3>Исключения</h3>
+        <div class="hint">Маска проверяется по имени каждой папки и каждого файла в пути. * — любые символы, ? — один символ. Регистр не важен.</div>
+        <div class="excl-list" id="exclList"></div>
+        <div class="row">
+          <input type="text" id="exclNew" placeholder="новая маска, например *.tmp" style="flex:1">
+          <button id="exclAdd" class="small">Добавить</button>
+        </div>
+        <div class="row"><button id="exclReset" class="small">Восстановить стандартные</button></div>
+      </div>
+    </div>
+  </details>
+
+  <div class="card" id="resultsCard">
+    <h2>Результат сравнения</h2>
+    <div id="resMsg"></div>
+    <div class="summary" id="summary"></div>
+    <div class="row" id="viewBar" hidden>
+      <label><input type="checkbox" id="onlyDiff"> Только различия</label>
+      <input type="search" id="search" placeholder="Поиск по имени или пути" style="width:280px">
+      <button class="small" id="expandAll">Развернуть все</button>
+      <button class="small" id="collapseAll">Свернуть все</button>
+      <span class="muted" id="rowInfo"></span>
+    </div>
+    <div class="vwrap" id="vwrap" hidden>
+      <div class="vtable">
+        <div class="vhead"><div>Статус</div><div>Имя</div><div class="num">Размер A</div><div class="num">Размер B</div><div>Дата A</div><div>Дата B</div><div class="num">Разница</div></div>
+        <div class="vp" id="vp"><div class="vinner" id="vinner"><div class="vcontent" id="vcontent"></div></div></div>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Журнал</h2>
+  <details class="card" id="diagCard">
+    <summary>Диагностика дат (для подбора допуска)</summary>
+    <div id="diag" class="muted" style="margin-top:8px">Появится после сравнения.</div>
+  </details>
+
+  <details class="card">
+    <summary>Журнал</summary>
     <div id="log"></div>
-  </div>
+  </details>
 </main>
 
 <script>
 'use strict';
+const APP_VERSION = 'v1.0';
 
 /* =====================================================================
    БЛОК 1. ОБХОД ПАПКИ
-   Одна функция работает и в Web Worker, и в основном потоке.
-   Не обращается ни к чему снаружи (её текст копируется в Worker).
+   Работает и в Web Worker, и в основном потоке. Не обращается ни к чему
+   снаружи: её текст копируется в Worker. opts.skip — источники RegExp
+   для исключаемых имён (папки не открываются, файлы не читаются).
    ===================================================================== */
 async function scanCore(root, opts, onProgress, isCancelled) {
   const t0 = performance.now();
   const errors = [];
   const entries = [];
+  const skipRes = (opts.skip || []).map(src => new RegExp(src, 'i'));
+  const isSkip = name => skipRes.some(r => r.test(name));
   const queue = [{ h: root, p: '' }];
-  let qi = 0, dirs = 0, last = 0;
+  let qi = 0, dirs = 0, skippedDirs = 0, skippedFiles = 0, last = 0;
   const errText = e => ((e && e.name) || 'Error') + ': ' + ((e && e.message) || String(e));
 
   async function report(o, force) {
@@ -124,6 +213,7 @@ async function scanCore(root, opts, onProgress, isCancelled) {
     const item = queue[qi]; queue[qi++] = null;
     try {
       for await (const [name, child] of item.h.entries()) {
+        if (isSkip(name)) { if (child.kind === 'directory') skippedDirs++; else skippedFiles++; continue; }
         const rel = item.p ? item.p + '/' + name : name;
         if (child.kind === 'directory') { queue.push({ h: child, p: rel }); dirs++; }
         else entries.push({ h: child, p: rel });
@@ -131,7 +221,7 @@ async function scanCore(root, opts, onProgress, isCancelled) {
         if (isCancelled()) return null;
       }
     } catch (e) {
-      if (!item.p) throw e; // корень недоступен — продолжать бессмысленно
+      if (!item.p) throw e;
       errors.push({ p: item.p, op: 'чтение папки', e: errText(e) });
     }
   }
@@ -163,7 +253,7 @@ async function scanCore(root, opts, onProgress, isCancelled) {
 
   const files = out.filter(Boolean);
   const tTotal = performance.now() - t0;
-  return { files, errors, dirs, tList, tMeta: tTotal - tList, tTotal, conc };
+  return { files, errors, dirs, skippedDirs, skippedFiles, tList, tMeta: tTotal - tList, tTotal, conc };
 }
 
 /* =====================================================================
@@ -237,7 +327,7 @@ function runScan(root, opts, onProgress, log) {
 }
 
 /* =====================================================================
-   БЛОК 3. ХРАНЕНИЕ (последние папки в IndexedDB, настройки в localStorage)
+   БЛОК 3. ХРАНЕНИЕ (последние папки — IndexedDB, настройки — localStorage)
    ===================================================================== */
 const IDB = {
   db: null,
@@ -268,9 +358,20 @@ const IDB = {
   }
 };
 
-const SETTINGS_KEY = 'sravnenie-papok-v0-settings';
-const settings = { conc: 8, mode: 'auto' };
-try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
+const DEFAULT_EXCL = ['OldVersions', '*.lck', '*.bak', '~$*', 'Thumbs.db', 'desktop.ini'];
+const SETTINGS_KEY = 'folder-compare-settings-v1';
+const settings = {
+  conc: 8, mode: 'auto',
+  size: true, date: true, tol: 2,
+  ext: '',
+  excl: DEFAULT_EXCL.map(m => ({ mask: m, on: true })),
+  onlyDiff: false
+};
+try {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+  if (saved && typeof saved === 'object') Object.assign(settings, saved);
+} catch (e) {}
+if (!Array.isArray(settings.excl)) settings.excl = DEFAULT_EXCL.map(m => ({ mask: m, on: true }));
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 
 /* =====================================================================
@@ -294,7 +395,13 @@ function fmtDate(ms) {
   const d = new Date(ms);
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
-const fmtDateMs = ms => fmtDate(ms) + ',' + pad(((ms % 1000) + 1000) % 1000, 3);
+function fmtDelta(ms) {
+  if (ms < 1000) return (ms / 1000).toFixed(2).replace('.', ',') + ' с';
+  if (ms < 60000) return Math.round(ms / 1000) + ' с';
+  if (ms < 3600000) return Math.round(ms / 60000) + ' мин';
+  if (ms < 86400000) return (ms / 3600000).toFixed(1).replace('.', ',') + ' ч';
+  return Math.round(ms / 86400000) + ' дн';
+}
 function extOf(p) {
   const name = p.slice(p.lastIndexOf('/') + 1);
   const i = name.lastIndexOf('.');
@@ -326,104 +433,109 @@ function log(text) {
 }
 
 /* =====================================================================
-   БЛОК 5. АНАЛИЗ РЕЗУЛЬТАТОВ (одна сторона и пары по одинаковому пути)
+   БЛОК 5. ПРАВИЛА ОТБОРА (исключения по маскам, фильтр расширений)
    ===================================================================== */
-function analyzeSide(r) {
-  let size = 0, zero = 0, msNon0 = 0, even2 = 0, minM = Infinity, maxM = -Infinity, future = 0;
-  const lim = Date.now() + 86400000;
-  const ext = new Map();
-  for (const x of r.files) {
-    size += x.s;
-    if (!x.s) zero++;
-    if (x.m % 1000) msNon0++;
-    else if (Math.floor(x.m / 1000) % 2 === 0) even2++;
-    if (x.m < minM) minM = x.m;
-    if (x.m > maxM) maxM = x.m;
-    if (x.m > lim) future++;
-    const e = extOf(x.p);
-    ext.set(e, (ext.get(e) || 0) + 1);
+function globToRe(mask) {
+  let src = '';
+  for (const ch of mask) {
+    if (ch === '*') src += '[^/]*';
+    else if (ch === '?') src += '[^/]';
+    else src += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
   }
-  const n = r.files.length || 1;
-  const topExt = [...ext.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
-    .map(([e, c]) => (e ? '.' + e : '(без расширения)') + ' — ' + num(c));
-  return {
-    size, zero, future, minM, maxM, topExt,
-    msPct: (msNon0 / n * 100).toFixed(1), even2Pct: (even2 / n * 100).toFixed(1),
-    speed: r.tTotal ? Math.round(r.files.length / (r.tTotal / 1000)) : 0
-  };
+  return new RegExp('^' + src + '$', 'i');
 }
-
-const BUCKETS = [
-  { t: '0 (точное совпадение)', f: d => d === 0 },
-  { t: 'до 1 с', f: d => d < 1000 },
-  { t: '1–2 с', f: d => d <= 2000 },
-  { t: '≈1 ч (±2 с): часовой пояс / летнее время', f: d => Math.abs(d - 3600000) <= 2000 },
-  { t: '≈2 ч (±2 с)', f: d => Math.abs(d - 7200000) <= 2000 },
-  { t: '≈3 ч (±2 с)', f: d => Math.abs(d - 10800000) <= 2000 },
-  { t: '2 с – 1 мин', f: d => d <= 60000 },
-  { t: '1 мин – 1 ч', f: d => d <= 3600000 },
-  { t: '1 ч – 1 сутки', f: d => d <= 86400000 },
-  { t: 'больше суток', f: () => true }
-];
-
-function analyzePairs(a, b) {
-  const mapA = new Map();
-  for (const x of a.files) mapA.set(x.p.toLowerCase(), x);
-  const seen = new Set();
-  let both = 0, onlyB = 0, sameSize = 0, caseDiff = 0;
-  const buckets = BUCKETS.map(bk => ({ t: bk.t, same: 0, diff: 0 }));
-  const ex = [];
-  const L = { onlyA: [], onlyB: [], sizeDiff: [], dateDiff: [] };
-  for (const y of b.files) {
-    const k = y.p.toLowerCase();
-    const x = mapA.get(k);
-    if (!x) { onlyB++; L.onlyB.push(y); continue; }
-    seen.add(k); both++;
-    if (x.p !== y.p) caseDiff++;
-    const d = Math.abs(y.m - x.m);
-    const same = x.s === y.s;
-    if (same) sameSize++;
-    const bi = BUCKETS.findIndex(bk => bk.f(d));
-    buckets[bi][same ? 'same' : 'diff']++;
-    if (same && d > 0) ex.push({ p: y.p, d, ma: x.m, mb: y.m });
-    if (!same) L.sizeDiff.push({ p: y.p, a: x, b: y });
-    else if (d > 0) L.dateDiff.push({ p: y.p, a: x, b: y });
+const activeMasks = () => settings.excl.filter(e => e.on && e.mask.trim()).map(e => e.mask.trim());
+function makeMatcher(masks) {
+  const res = masks.map(globToRe);
+  return name => res.some(r => r.test(name));
+}
+function parseExt(str) {
+  const set = new Set();
+  for (const part of String(str || '').split(/[\s,;]+/)) {
+    const e = part.trim().replace(/^\*?\./, '').toLowerCase();
+    if (e) set.add(e);
   }
-  for (const x of a.files) if (!seen.has(x.p.toLowerCase())) L.onlyA.push(x);
-  const byPath = (u, v) => collator.compare(u.p, v.p);
-  for (const k in L) L[k].sort(byPath);
-  ex.sort((p, q) => p.d - q.d);
-  return { L, both, onlyA: a.files.length - seen.size, onlyB, sameSize, caseDiff, buckets, ex: ex.slice(0, 25), exTotal: ex.length };
+  return set;
+}
+// Отбор файлов одной стороны по текущим правилам (без нового обхода)
+function filterSide(files, match, extSet) {
+  const out = []; let excl = 0;
+  for (const f of files) {
+    if (f.p.split('/').some(match) || (extSet.size && !extSet.has(extOf(f.p)))) { excl++; continue; }
+    out.push(f);
+  }
+  return { files: out, excl };
 }
 
 /* =====================================================================
-   БЛОК 6. ИНТЕРФЕЙС
+   БЛОК 6. СОПОСТАВЛЕНИЕ И СТАТУСЫ
+   Пара: { key, a, b, status, conf, reason, dd, dir, dirKey, name, pathL }
+   status: same | chg | new | del;  conf (достоверность): exact (точная) —
+   на следующих этапах добавятся rule / manual / guess.
+   ===================================================================== */
+const STATUS = {
+  same: 'Идентичен', chg: 'Изменён', new: 'Новый', del: 'Удалён'
+};
+function splitPath(p) {
+  const i = p.lastIndexOf('/');
+  return i < 0 ? { dir: '', name: p } : { dir: p.slice(0, i), name: p.slice(i + 1) };
+}
+function comparePair(a, b, cfg) {
+  const sizeDiff = cfg.size && a.s !== b.s;
+  const dd = Math.abs(a.m - b.m);
+  const dateDiff = cfg.date && dd > cfg.tol * 1000;
+  const status = (sizeDiff || dateDiff) ? 'chg' : 'same';
+  const reason = sizeDiff && dateDiff ? 'размер и дата' : sizeDiff ? 'размер' : dateDiff ? 'дата' : '';
+  return { status, reason, dd, sizeDiff, dateDiff };
+}
+function compareSets(A, B, cfg) {
+  const mapA = new Map();
+  for (const x of A) mapA.set(x.p.toLowerCase(), x);
+  const seen = new Set();
+  const pairs = [];
+  const mk = (a, b, extra) => {
+    const p = (b || a).p;
+    const sp = splitPath(p);
+    return Object.assign({ key: p.toLowerCase(), a, b, conf: a && b ? 'exact' : null,
+      dir: sp.dir, dirKey: sp.dir.toLowerCase(), name: sp.name, pathL: p.toLowerCase(),
+      reason: '', dd: 0, sizeDiff: false, dateDiff: false }, extra);
+  };
+  for (const y of B) {
+    const k = y.p.toLowerCase();
+    const x = mapA.get(k);
+    if (x) { seen.add(k); pairs.push(mk(x, y, comparePair(x, y, cfg))); }
+    else pairs.push(mk(null, y, { status: 'new' }));
+  }
+  for (const x of A) if (!seen.has(x.p.toLowerCase())) pairs.push(mk(x, null, { status: 'del' }));
+  const counts = { same: 0, chg: 0, new: 0, del: 0 };
+  for (const p of pairs) counts[p.status]++;
+  return { pairs, counts };
+}
+
+/* =====================================================================
+   БЛОК 7. ИНТЕРФЕЙС: стороны A и B (выбор, перетаскивание, обход)
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.7';
+const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
+const SIDE_SUB = { A: 'было / эталон', B: 'стало / проверяемое' };
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
-const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
 
 function sideHTML(id) {
   return `<div class="card" id="side-${id}">
-    <h2>${SIDE_TITLES[id]}</h2>
+    <h2>${SIDE_TITLES[id]} <span class="muted" style="font-weight:400">— ${SIDE_SUB[id]}</span></h2>
     <div class="row">
       <button data-act="pick">Выбрать папку…</button>
-      <button data-act="pick3" title="Диагностика: то же окно выбора, но без дополнительных параметров">Тест выбора</button>
-      <button data-act="pick2" title="Через обычное окно загрузки. Папка не запоминается, файлы никуда не отправляются.">Запасной способ…</button>
-      <input type="file" data-f="dirinput" webkitdirectory multiple hidden>
       <button data-act="reopen" disabled>Открыть последнюю</button>
       <button data-act="scan" class="primary" disabled>Сканировать</button>
       <button data-act="cancel" disabled>Отмена</button>
-      <button data-act="csv" disabled>Список в CSV</button>
     </div>
-    <div class="hint">Или перетащите папку сюда из Проводника.</div>
+    <div class="hint">Или перетащите папку сюда из Проводника · <a href="#" data-act="pick2">запасной способ</a> (папка не запоминается)</div>
+    <input type="file" data-f="dirinput" webkitdirectory multiple hidden>
     <div class="row"><span class="muted">Папка:</span><span class="path" data-f="name">не выбрана</span></div>
     <div data-f="msg"></div>
     <div data-f="prog" hidden><div class="bar"><div></div></div><div class="muted path" data-f="progtext"></div></div>
     <div data-f="stats"></div>
-    <div data-f="table"></div>
   </div>`;
 }
 document.getElementById('sides').innerHTML = sideHTML('A') + sideHTML('B');
@@ -431,7 +543,7 @@ document.getElementById('sides').innerHTML = sideHTML('A') + sideHTML('B');
 function mkSide(id) {
   const el = document.getElementById('side-' + id);
   return {
-    id, el, handle: null, saved: null, result: null, job: null, sorted: null,
+    id, el, handle: null, saved: null, result: null, job: null, lastPerm: '',
     q: f => el.querySelector(`[data-f="${f}"]`),
     btn: a => el.querySelector(`[data-act="${a}"]`)
   };
@@ -439,47 +551,56 @@ function mkSide(id) {
 const S = { A: mkSide('A'), B: mkSide('B') };
 const sides = [S.A, S.B];
 
-function showMsg(s, kind, text) { s.q('msg').innerHTML = `<div class="msg ${kind}">${esc(text)}</div>`; }
+function showMsg(s, kind, text, btnText, btnFn) {
+  const box = s.q('msg');
+  box.innerHTML = `<div class="msg ${kind}">${esc(text)}${btnText ? ` <button class="small">${esc(btnText)}</button>` : ''}</div>`;
+  if (btnText) box.querySelector('button').onclick = btnFn;
+}
 function clearMsg(s) { s.q('msg').innerHTML = ''; }
 
 function refreshButtons() {
   for (const s of sides) {
     s.btn('pick').disabled = !!s.job || !SUPPORTED;
-    s.btn('pick2').disabled = !!s.job;
-    s.btn('pick3').disabled = !!s.job || !SUPPORTED;
     s.btn('reopen').disabled = !!s.job || !s.saved;
     s.btn('scan').disabled = !!s.job || !s.handle;
     s.btn('cancel').disabled = !s.job;
-    s.btn('csv').disabled = !!s.job || !s.result;
     s.btn('reopen').textContent = s.saved ? `Открыть последнюю: «${s.saved.name}»` : 'Открыть последнюю';
   }
-  document.getElementById('btnBoth').disabled = !(S.A.handle || S.B.handle) || !!S.A.job || !!S.B.job;
+  const busy = sides.some(s => s.job);
+  const ready = sides.every(s => s.handle || s.result);
+  document.getElementById('btnCompare').disabled = busy || !ready;
+  document.getElementById('compareHint').textContent = ready ? '' : 'Выберите папки слева и справа.';
 }
 
 function setHandle(s, h) {
-  s.handle = h;
-  s.result = null; s.sorted = null;
+  s.handle = h; s.result = null;
   s.q('name').textContent = h.name;
-  s.q('stats').innerHTML = ''; s.q('table').innerHTML = ''; s.q('prog').hidden = true;
+  s.q('stats').innerHTML = ''; s.q('prog').hidden = true;
   clearMsg(s);
-  renderPairs(); refreshButtons();
+  recompute(); refreshButtons();
 }
 
-async function pick(s, plain) {
-  log(`${s.id}: открываю окно выбора папки${plain ? ' (тест: без параметров)' : ''}`);
+function openFallback(s) {
+  if (s.job) return;
+  log(`${s.id}: запасной способ — открываю окно`);
+  const inp = s.q('dirinput');
+  inp.value = '';
+  inp.click();
+}
+
+async function pick(s) {
+  log(`${s.id}: открываю окно выбора папки`);
   try {
-    const h = plain ? await window.showDirectoryPicker() : await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
+    const h = await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
     log(`${s.id}: Chrome вернул папку «${h.name}»`);
-    setHandle(s, h);
-    s.saved = h;
+    setHandle(s, h); s.saved = h;
     try { await IDB.put(s.id, h); } catch (e) { log(`${s.id}: не удалось запомнить папку (${e.name})`); }
-    log(`${s.id}: выбрана папка «${h.name}»`);
     refreshButtons();
   } catch (e) {
     if (e.name === 'AbortError') {
       log(`${s.id}: выбор прерван — ${e.message || 'без описания'}`);
-      showMsg(s, 'warn', 'Папка не выбрана: окно закрыто или Chrome отказал в доступе к этой папке. ' +
-        'Если вы папку выбирали и подтверждали — перетащите её сюда из Проводника или используйте «Запасной способ». [AbortError: ' + (e.message || '') + ']');
+      showMsg(s, 'warn', 'Папка не выбрана (окно закрыто или Chrome прервал выбор). Перетащите папку сюда из Проводника или откройте запасным способом.',
+        'Открыть запасным способом', () => openFallback(s));
       return;
     }
     showMsg(s, 'err', explainError(e));
@@ -487,8 +608,7 @@ async function pick(s, plain) {
   }
 }
 
-// Запасной способ: обычный выбор папки через <input webkitdirectory>.
-// Файлы не загружаются никуда — читаются только имя, размер и дата.
+// Запасной способ: <input webkitdirectory>. Файлы никуда не отправляются.
 function loadFromInput(s) {
   const fl = s.q('dirinput').files;
   if (!fl || !fl.length) { log(`${s.id}: запасной способ — папка не выбрана или пустая`); return; }
@@ -508,17 +628,14 @@ function loadFromInput(s) {
   const t = performance.now() - t0;
   s.handle = null;
   s.q('name').textContent = root + '  (запасной способ)';
-  const res = { files, errors: [], dirs: dirSet.size, tList: t, tMeta: 0, tTotal: t, conc: 0,
-    mode: 'запасной способ (input)', root, when: Date.now() };
-  s.result = res;
-  s.sorted = files.slice().sort((x, y) => collator.compare(x.p, y.p));
-  clearMsg(s);
-  showMsg(s, 'ok', 'Прочитано запасным способом. Пустые подпапки этим способом не видны; папка не запоминается.');
-  log(`${s.id}: запасной способ — «${root}», файлов ${num(files.length)}, подпапок с файлами ${num(dirSet.size)}`);
-  renderStats(s); renderTable(s); renderPairs(); refreshButtons();
+  s.result = { files, errors: [], dirs: dirSet.size, skippedDirs: 0, skippedFiles: 0, tList: t, tMeta: 0, tTotal: t, conc: 0,
+    mode: 'запасной способ', root, when: Date.now(), scanMasks: [] };
+  showMsg(s, 'ok', 'Прочитано запасным способом. Чтобы обновить — выберите папку заново.');
+  log(`${s.id}: запасной способ — «${root}», файлов ${num(files.length)}`);
+  renderStats(s); recompute(); refreshButtons();
 }
 
-// Перетаскивание папки из Проводника: даёт доступ без окна выбора папки.
+// Перетаскивание папки из Проводника: доступ без окна выбора папки.
 function setupDrop(s) {
   const el = s.el;
   let depth = 0;
@@ -531,17 +648,16 @@ function setupDrop(s) {
     const items = [...(e.dataTransfer.items || [])].filter(i => i.kind === 'file');
     if (!items.length) { log(`${s.id}: перетаскивание — нет папки`); return; }
     if (items.length > 1) { showMsg(s, 'warn', 'Перетащите одну папку.'); return; }
-    if (!items[0].getAsFileSystemHandle) { showMsg(s, 'err', 'Этот браузер не поддерживает перетаскивание папок. Используйте «Запасной способ…».'); return; }
+    if (!items[0].getAsFileSystemHandle) { showMsg(s, 'err', 'Браузер не поддерживает перетаскивание папок. Используйте запасной способ.'); return; }
     const hp = items[0].getAsFileSystemHandle(); // вызывать сразу, до любого await
     log(`${s.id}: папка перетащена, получаю доступ`);
     hp.then(async h => {
       if (!h || h.kind !== 'directory') { showMsg(s, 'warn', 'Перетащите папку, а не файл.'); return; }
       setHandle(s, h); s.saved = h;
       try { await IDB.put(s.id, h); } catch (er) { log(`${s.id}: не удалось запомнить папку (${er.name})`); }
-      let st = '?'; try { st = await h.queryPermission({ mode: 'read' }); } catch (er) {}
-      log(`${s.id}: перетащена папка «${h.name}», разрешение: ${st}`);
+      log(`${s.id}: перетащена папка «${h.name}»`);
       refreshButtons();
-      showMsg(s, 'ok', 'Папка получена перетаскиванием. Нажмите «Сканировать».');
+      showMsg(s, 'ok', 'Папка получена. Нажмите «Сканировать и сравнить».');
     }).catch(er => {
       showMsg(s, 'err', 'Не удалось получить папку перетаскиванием. ' + explainError(er));
       log(`${s.id}: ошибка перетаскивания — ${er.name}: ${er.message}`);
@@ -552,8 +668,8 @@ function setupDrop(s) {
 async function ensurePermission(s, h) {
   const o = { mode: 'read' };
   let st = await h.queryPermission(o);
-  log(`${s.id}: разрешение для «${h.name}» сейчас: ${st}`);
   if (st === 'granted') return true;
+  log(`${s.id}: разрешение для «${h.name}»: ${st}, запрашиваю`);
   st = await h.requestPermission(o);
   log(`${s.id}: запрос разрешения → ${st}`);
   s.lastPerm = st;
@@ -564,11 +680,9 @@ async function permOrMsg(s, h) {
   try {
     if (await ensurePermission(s, h)) return true;
     if (s.lastPerm === 'denied')
-      showMsg(s, 'warn', 'Chrome запретил доступ к этой папке (ответ «Не разрешать» или блокировка). ' +
-        'Нажмите «Выбрать папку…» и выберите её заново, либо сбросьте запрет: значок слева от адреса → «Настройки сайтов» → «Файлы».');
+      showMsg(s, 'warn', 'Chrome запретил доступ к этой папке. Перетащите её сюда из Проводника или сбросьте запрет: значок слева от адреса → «Настройки сайтов» → «Файлы».');
     else
-      showMsg(s, 'warn', 'Окно разрешения Chrome закрылось без ответа. Нажмите кнопку ещё раз и в окне вверху страницы выберите «Разрешить». ' +
-        'Если окно не появляется — нажмите «Выбрать папку…» и выберите папку заново.');
+      showMsg(s, 'warn', 'Окно разрешения закрылось без ответа. Нажмите кнопку ещё раз и в окне вверху страницы выберите «Разрешить».');
   } catch (e) {
     showMsg(s, 'err', 'Chrome не дал запросить разрешение. Нажмите «Сканировать» у этой папки отдельно. ' + explainError(e));
     log(`${s.id}: запрос разрешения не выполнен — ${e.name}: ${e.message}`);
@@ -601,29 +715,27 @@ function showProgress(s, pr) {
 }
 
 async function scan(s, skipPerm) {
-  if (!s.handle || s.job) return;
+  if (!s.handle || s.job) return false;
   clearMsg(s);
-  if (!skipPerm && !(await permOrMsg(s, s.handle))) return;
-  s.result = null; s.sorted = null;
-  s.q('stats').innerHTML = ''; s.q('table').innerHTML = '';
-  renderPairs();
-  const opts = { conc: settings.conc, mode: settings.mode };
+  if (!skipPerm && !(await permOrMsg(s, s.handle))) return false;
+  s.result = null;
+  s.q('stats').innerHTML = '';
+  recompute();
+  const masks = activeMasks();
+  const opts = { conc: settings.conc, mode: settings.mode, skip: masks.map(m => globToRe(m).source) };
   const job = runScan(s.handle, opts, pr => showProgress(s, pr), m => log(`${s.id}: ${m}`));
   s.job = job; refreshButtons();
   showProgress(s, { phase: 'list', found: 0, dirs: 0, elapsed: 0 });
-  log(`${s.id}: старт обхода «${s.handle.name}», потоков чтения: ${opts.conc}`);
+  log(`${s.id}: старт обхода «${s.handle.name}»`);
+  let ok = false;
   try {
     const res = await job.promise;
-    if (!res) {
-      showMsg(s, 'warn', 'Обход отменён.');
-      log(`${s.id}: обход отменён`);
-    } else {
-      res.mode = job.mode; res.root = s.handle.name; res.when = Date.now();
-      s.result = res;
-      s.sorted = res.files.slice().sort((x, y) => collator.compare(x.p, y.p));
-      log(`${s.id}: готово (${job.mode}) — файлов ${num(res.files.length)}, подпапок ${num(res.dirs)}, ${fmtTime(res.tTotal)}, ошибок ${res.errors.length}`);
+    if (!res) { showMsg(s, 'warn', 'Обход отменён.'); log(`${s.id}: обход отменён`); }
+    else {
+      res.mode = job.mode; res.root = s.handle.name; res.when = Date.now(); res.scanMasks = masks;
+      s.result = res; ok = true;
+      log(`${s.id}: готово (${job.mode}) — файлов ${num(res.files.length)}, пропущено папок ${res.skippedDirs}, файлов ${res.skippedFiles}, ${fmtTime(res.tTotal)}, ошибок ${res.errors.length}`);
       if (res.errors.length) showMsg(s, 'warn', `Часть элементов не прочитана: ${res.errors.length}. Подробности ниже.`);
-      else showMsg(s, 'ok', 'Обход завершён без ошибок.');
     }
   } catch (e) {
     showMsg(s, 'err', explainError(e));
@@ -631,148 +743,299 @@ async function scan(s, skipPerm) {
   } finally {
     s.job = null;
     s.q('prog').hidden = true;
-    renderStats(s); renderTable(s); renderPairs(); refreshButtons();
+    renderStats(s); recompute(); refreshButtons();
   }
+  return ok;
 }
 
-async function scanBoth() {
-  // Сначала оба разрешения (пока действует нажатие кнопки), потом обход по очереди
+async function scanAndCompare() {
+  // Сначала все разрешения (пока действует нажатие кнопки), потом обход по очереди
   for (const s of sides) if (s.handle && !(await permOrMsg(s, s.handle))) return;
   for (const s of sides) if (s.handle) await scan(s, true);
+  document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderStats(s) {
   const r = s.result;
   if (!r) { s.q('stats').innerHTML = ''; return; }
-  const a = analyzeSide(r);
-  const rows = [
-    ['Режим обхода', r.mode],
-    ['Файлов', num(r.files.length)],
-    ['Подпапок', num(r.dirs)],
-    ['Общий объём', fmtSize(a.size)],
-    ['Пустых файлов (0 Б)', num(a.zero)],
-    ['Время: список', fmtTime(r.tList)],
-    ['Время: размеры и даты', `${fmtTime(r.tMeta)} (потоков: ${r.conc})`],
-    ['Время: всего', fmtTime(r.tTotal)],
-    ['Скорость', num(a.speed) + ' файлов/с'],
-    ['Самая старая дата', r.files.length ? fmtDate(a.minM) : '—'],
-    ['Самая новая дата', r.files.length ? fmtDate(a.maxM) : '—'],
-    ['Даты в будущем', num(a.future)],
-    ['Даты с миллисекундами', a.msPct + '%'],
-    ['Даты, кратные 2 с', a.even2Pct + '%'],
-    ['Ошибок чтения', num(r.errors.length)]
+  let size = 0; for (const f of r.files) size += f.s;
+  const parts = [
+    `<b>${num(r.files.length)}</b> файлов`, `${num(r.dirs)} подпапок`, fmtSize(size),
+    fmtTime(r.tTotal), r.mode
   ];
-  let h = '<div class="stat">' + rows.map(([k, v]) => `<div>${esc(k)}</div><div>${esc(v)}</div>`).join('') + '</div>';
-  h += `<div class="row muted">Расширения: ${esc(a.topExt.join(', ') || '—')}</div>`;
+  if (r.skippedDirs || r.skippedFiles) parts.push(`пропущено при обходе: папок ${num(r.skippedDirs)}, файлов ${num(r.skippedFiles)}`);
+  if (r.errors.length) parts.push(`<b style="color:#b91c1c">ошибок ${r.errors.length}</b>`);
+  let h = `<div class="stats">${parts.join(' · ')} · <a href="#" data-csv>список в CSV</a></div>`;
   if (r.errors.length) {
-    h += `<details><summary>Ошибки (${r.errors.length})</summary><div class="scroll"><table>
-      <tr><th>Путь</th><th>Действие</th><th>Ошибка</th></tr>` +
-      r.errors.slice(0, 300).map(e => `<tr><td class="path">${esc(e.p)}</td><td>${esc(e.op)}</td><td>${esc(e.e)}</td></tr>`).join('') +
-      '</table></div></details>';
+    h += `<details style="margin-top:6px"><summary>Ошибки (${r.errors.length})</summary><div class="stats">` +
+      r.errors.slice(0, 200).map(e => `<div><span class="path">${esc(e.p)}</span> — ${esc(e.op)}: ${esc(e.e)}</div>`).join('') + '</div></details>';
   }
   s.q('stats').innerHTML = h;
+  s.q('stats').querySelector('[data-csv]').onclick = ev => { ev.preventDefault(); exportSideCsv(s); };
 }
 
-function renderTable(s) {
-  if (!s.sorted) { s.q('table').innerHTML = ''; return; }
-  const list = s.sorted.slice(0, 300);
-  s.q('table').innerHTML = `<details><summary>Файлы (первые ${list.length} из ${num(s.sorted.length)}, по пути)</summary>
-    <div class="scroll"><table><tr><th>Путь</th><th class="num">Размер</th><th class="num">Дата изменения</th></tr>` +
-    list.map(x => `<tr><td class="path">${esc(x.p)}</td><td class="num">${num(x.s)}</td><td class="num">${fmtDateMs(x.m)}</td></tr>`).join('') +
-    '</table></div></details>';
-}
-
-function renderPairs() {
-  const box = document.getElementById('pairs');
-  if (!S.A.result || !S.B.result) { box.className = 'muted'; box.innerHTML = 'Появится после обхода обеих папок.'; return; }
-  box.className = '';
-  const p = analyzePairs(S.A.result, S.B.result);
-  let h = `<p class="muted">Это не сравнение, а подсказка для выбора допуска по дате. Пары найдены по одинаковому пути (без учёта регистра).</p>
-  <div class="stat">
-    <div>Общих путей</div><div>${num(p.both)}${p.caseDiff ? ` (из них регистр букв отличается: ${num(p.caseDiff)})` : ''}</div>
-    <div>Только слева</div><div>${num(p.onlyA)}</div>
-    <div>Только справа</div><div>${num(p.onlyB)}</div>
-    <div>Общих с одинаковым размером</div><div>${num(p.sameSize)}</div>
-  </div>
-  <h2 style="margin-top:14px">Разница дат у общих файлов</h2>
-  <div class="scroll"><table><tr><th>Разница</th><th class="num">Размер одинаковый</th><th class="num">Размер разный</th></tr>` +
-    p.buckets.map(b => `<tr><td>${esc(b.t)}</td><td class="num">${num(b.same)}</td><td class="num">${num(b.diff)}</td></tr>`).join('') +
-    '</table></div>';
-  if (p.ex.length) {
-    h += `<details><summary>Примеры: размер одинаковый, дата отличается (${p.ex.length} из ${num(p.exTotal)}, от меньшей разницы)</summary>
-    <div class="scroll"><table><tr><th>Путь</th><th class="num">Слева</th><th class="num">Справа</th><th class="num">Разница</th></tr>` +
-      p.ex.map(e => `<tr><td class="path">${esc(e.p)}</td><td class="num">${fmtDateMs(e.ma)}</td><td class="num">${fmtDateMs(e.mb)}</td><td class="num">${fmtTime(e.d)}</td></tr>`).join('') +
-      '</table></div></details>';
-  }
-  h += '<h2 style="margin-top:14px">Какие файлы отличаются</h2>' +
-    '<p class="muted">Предварительно, по одинаковому пути. Полное сравнение с правилами появится на этапе 1.</p>';
-  const cmpRows = arr => arr.map(e => `<tr><td class="path">${esc(e.p)}</td><td class="num">${num(e.a.s)}</td><td class="num">${num(e.b.s)}</td><td class="num">${fmtDate(e.a.m)}</td><td class="num">${fmtDate(e.b.m)}</td></tr>`).join('');
-  const cmpHead = '<tr><th>Путь</th><th class="num">Размер A</th><th class="num">Размер B</th><th class="num">Дата A</th><th class="num">Дата B</th></tr>';
-  const oneRows = arr => arr.map(x => `<tr><td class="path">${esc(x.p)}</td><td class="num">${num(x.s)}</td><td class="num">${fmtDate(x.m)}</td></tr>`).join('');
-  const oneHead = '<tr><th>Путь</th><th class="num">Размер</th><th class="num">Дата</th></tr>';
-  const block = (title, arr, head, rows, open) => arr.length
-    ? `<details${open ? ' open' : ''}><summary>${esc(title)} (${num(arr.length)})</summary><div class="scroll"><table>${head}${rows(arr.slice(0, 2000))}</table></div></details>`
-    : `<div class="muted" style="margin:6px 0">${esc(title)}: нет</div>`;
-  h += block('Размер отличается', p.L.sizeDiff, cmpHead, cmpRows, true);
-  h += block('Размер одинаковый, дата отличается', p.L.dateDiff, cmpHead, cmpRows, true);
-  h += block('Только слева (A)', p.L.onlyA, oneHead, oneRows, true);
-  h += block('Только справа (B)', p.L.onlyB, oneHead, oneRows, true);
-  box.innerHTML = h;
-}
-
-/* --- Экспорт и отчёт --- */
-function exportCsv(s) {
+function exportSideCsv(s) {
   const r = s.result; if (!r) return;
   const qq = v => '"' + String(v).replace(/"/g, '""') + '"';
-  const lines = ['Путь;Размер, байт;Дата изменения;Миллисекунды;Расширение'];
-  for (const x of s.sorted) lines.push([qq(x.p), x.s, fmtDate(x.m), ((x.m % 1000) + 1000) % 1000, qq(extOf(x.p))].join(';'));
-  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `список_${s.id}_${r.root.replace(/[\\/:*?"<>|]/g, '_')}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  const lines = ['Путь;Размер, байт;Дата изменения;Расширение'];
+  const sorted = r.files.slice().sort((x, y) => collator.compare(x.p, y.p));
+  for (const x of sorted) lines.push([qq(x.p), x.s, fmtDate(x.m), qq(extOf(x.p))].join(';'));
+  downloadText(`список_${s.id}_${r.root.replace(/[\\/:*?"<>|]/g, '_')}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
   log(`${s.id}: список выгружен в CSV`);
 }
+function downloadText(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 
+/* =====================================================================
+   БЛОК 8. ИНТЕРФЕЙС: настройки
+   ===================================================================== */
+function renderExcl() {
+  const box = document.getElementById('exclList');
+  box.innerHTML = settings.excl.map((e, i) => `<div class="excl-item${e.on ? '' : ' off'}" data-i="${i}">
+      <input type="checkbox" ${e.on ? 'checked' : ''} title="Включить / выключить">
+      <input type="text" value="${esc(e.mask)}">
+      <button class="small" title="Удалить">✕</button></div>`).join('') ||
+    '<div class="muted">Исключений нет.</div>';
+  box.querySelectorAll('.excl-item').forEach(row => {
+    const i = +row.dataset.i;
+    const [cb, tx] = row.querySelectorAll('input');
+    cb.onchange = () => { settings.excl[i].on = cb.checked; saveSettings(); renderExcl(); recompute(); };
+    tx.onchange = () => { settings.excl[i].mask = tx.value.trim(); saveSettings(); recompute(); };
+    row.querySelector('button').onclick = () => { settings.excl.splice(i, 1); saveSettings(); renderExcl(); recompute(); };
+  });
+}
+function addExcl() {
+  const inp = document.getElementById('exclNew');
+  const v = inp.value.trim(); if (!v) return;
+  settings.excl.push({ mask: v, on: true }); inp.value = '';
+  saveSettings(); renderExcl(); recompute();
+}
+
+function initSettingsUI() {
+  const $ = id => document.getElementById(id);
+  $('cSize').checked = settings.size; $('cDate').checked = settings.date; $('cTol').value = settings.tol;
+  $('cExt').value = settings.ext;
+  $('setConc').value = String(settings.conc); if ($('setConc').value !== String(settings.conc)) { settings.conc = 8; $('setConc').value = '8'; }
+  $('setMode').value = settings.mode;
+  $('onlyDiff').checked = settings.onlyDiff;
+  $('cSize').onchange = () => { settings.size = $('cSize').checked; saveSettings(); recompute(); };
+  $('cDate').onchange = () => { settings.date = $('cDate').checked; saveSettings(); recompute(); };
+  $('cTol').onchange = () => {
+    let v = parseFloat(String($('cTol').value).replace(',', '.'));
+    if (!isFinite(v) || v < 0) v = 0;
+    settings.tol = v; $('cTol').value = v; saveSettings(); recompute();
+  };
+  $('cExt').onchange = () => { settings.ext = $('cExt').value; saveSettings(); recompute(); };
+  $('setConc').onchange = () => { settings.conc = +$('setConc').value; saveSettings(); };
+  $('setMode').onchange = () => { settings.mode = $('setMode').value; saveSettings(); };
+  $('exclAdd').onclick = addExcl;
+  $('exclNew').onkeydown = e => { if (e.key === 'Enter') addExcl(); };
+  $('exclReset').onclick = () => {
+    const have = new Set(settings.excl.map(e => e.mask.toLowerCase()));
+    for (const m of DEFAULT_EXCL) if (!have.has(m.toLowerCase())) settings.excl.push({ mask: m, on: true });
+    settings.excl.forEach(e => { if (DEFAULT_EXCL.some(m => m.toLowerCase() === e.mask.toLowerCase())) e.on = true; });
+    saveSettings(); renderExcl(); recompute();
+  };
+  renderExcl();
+}
+
+/* =====================================================================
+   БЛОК 9. ИНТЕРФЕЙС: результаты (сводка, фильтры, виртуальный список)
+   ===================================================================== */
+let CMP = null;                 // { pairs, counts, exclA, exclB, stale }
+const view = { st: { same: true, chg: true, new: true, del: true }, q: '', collapsed: new Set() };
+const ROW_H = 28;
+const V = { rows: [], raf: 0 };
+
+function recompute() {
+  const ready = S.A.result && S.B.result;
+  if (!ready) { CMP = null; renderResults(); return; }
+  const masks = activeMasks();
+  const match = makeMatcher(masks);
+  const extSet = parseExt(settings.ext);
+  const fa = filterSide(S.A.result.files, match, extSet);
+  const fb = filterSide(S.B.result.files, match, extSet);
+  const cur = new Set(masks.map(m => m.toLowerCase()));
+  const stale = sides.some(s => (s.result.scanMasks || []).some(m => !cur.has(m.toLowerCase())));
+  CMP = compareSets(fa.files, fb.files, { size: settings.size, date: settings.date, tol: settings.tol });
+  CMP.exclA = fa.excl + S.A.result.skippedFiles; CMP.exclB = fb.excl + S.B.result.skippedFiles;
+  CMP.totalA = fa.files.length; CMP.totalB = fb.files.length;
+  CMP.stale = stale;
+  renderResults();
+}
+
+function renderResults() {
+  const resMsg = document.getElementById('resMsg');
+  const sum = document.getElementById('summary');
+  const bar = document.getElementById('viewBar');
+  const wrap = document.getElementById('vwrap');
+  if (!CMP) {
+    resMsg.innerHTML = '<div class="msg info">Выберите папки слева и справа и нажмите «Сканировать и сравнить».</div>';
+    sum.innerHTML = ''; bar.hidden = true; wrap.hidden = true;
+    document.getElementById('diag').innerHTML = 'Появится после сравнения.';
+    return;
+  }
+  resMsg.innerHTML = CMP.stale
+    ? '<div class="msg warn">Исключения изменились: часть папок или файлов была пропущена при прошлом обходе. Нажмите «Сканировать и сравнить», чтобы применить полностью.</div>'
+    : '';
+  const c = CMP.counts;
+  const chip = (st, label) => `<span class="chip ${st}${view.st[st] ? '' : ' off'}" data-st="${st}" title="Показать / скрыть">${label} <b>${num(c[st])}</b></span>`;
+  sum.innerHTML =
+    `<span class="muted">A: ${num(CMP.totalA)} файлов${CMP.exclA ? ` (исключено ${num(CMP.exclA)})` : ''} · B: ${num(CMP.totalB)}${CMP.exclB ? ` (исключено ${num(CMP.exclB)})` : ''}</span>` +
+    chip('same', 'Идентичны') + chip('chg', 'Изменены') + chip('new', 'Новые (только B)') + chip('del', 'Удалены (только A)');
+  sum.querySelectorAll('.chip').forEach(el => el.onclick = () => {
+    const st = el.dataset.st; view.st[st] = !view.st[st];
+    if (st === 'same') { settings.onlyDiff = !view.st.same; document.getElementById('onlyDiff').checked = settings.onlyDiff; saveSettings(); }
+    renderResults();
+  });
+  bar.hidden = false; wrap.hidden = false;
+  buildRows(); renderRows(); renderDiag();
+}
+
+function buildRows() {
+  const q = view.q.trim().toLowerCase();
+  const groups = new Map();
+  for (const pr of CMP.pairs) {
+    let g = groups.get(pr.dirKey);
+    if (!g) groups.set(pr.dirKey, g = { key: pr.dirKey, dir: pr.dir, all: 0, diff: 0, items: [] });
+    g.all++; if (pr.status !== 'same') g.diff++;
+    if (!view.st[pr.status]) continue;
+    if (q && !pr.pathL.includes(q)) continue;
+    g.items.push(pr);
+  }
+  const list = [...groups.values()].filter(g => g.items.length).sort((x, y) => collator.compare(x.dir, y.dir));
+  const rows = [];
+  let shown = 0;
+  for (const g of list) {
+    g.items.sort((x, y) => collator.compare(x.name, y.name));
+    const collapsed = !q && view.collapsed.has(g.key);
+    rows.push({ t: 'g', g, collapsed });
+    shown += g.items.length;
+    if (!collapsed) for (const pr of g.items) rows.push({ t: 'f', pr });
+  }
+  V.rows = rows;
+  document.getElementById('rowInfo').textContent = `показано файлов: ${num(shown)} из ${num(CMP.pairs.length)}`;
+  document.getElementById('vinner').style.height = rows.length * ROW_H + 'px';
+}
+
+function rowHTML(r) {
+  if (r.t === 'g') {
+    const g = r.g;
+    return `<div class="vr g" data-g="${esc(g.key)}"><span class="tw">${r.collapsed ? '▸' : '▾'}</span>` +
+      `<span class="path">${esc(g.dir || '(корень папки)')}</span>` +
+      `<span class="muted" style="font-weight:400">· файлов ${num(g.all)}${g.diff ? ` · различий ${num(g.diff)}` : ''}</span></div>`;
+  }
+  const p = r.pr, a = p.a, b = p.b;
+  const tip = (b || a).p + (p.reason ? ' — отличается: ' + p.reason : '');
+  return `<div class="vr f st-${p.status}" title="${esc(tip)}">` +
+    `<div class="stc">${STATUS[p.status]}${p.reason ? ` <span class="muted" style="font-weight:400">(${p.reason})</span>` : ''}</div>` +
+    `<div class="nm">${esc(p.name)}</div>` +
+    `<div class="num${p.sizeDiff ? ' dif' : ''}">${a ? num(a.s) : ''}</div>` +
+    `<div class="num${p.sizeDiff ? ' dif' : ''}">${b ? num(b.s) : ''}</div>` +
+    `<div${p.dateDiff ? ' class="dif"' : ''}>${a ? fmtDate(a.m) : ''}</div>` +
+    `<div${p.dateDiff ? ' class="dif"' : ''}>${b ? fmtDate(b.m) : ''}</div>` +
+    `<div class="num">${a && b && p.dd ? fmtDelta(p.dd) : ''}</div></div>`;
+}
+
+function renderRows() {
+  const vp = document.getElementById('vp');
+  const content = document.getElementById('vcontent');
+  if (!V.rows.length) { content.style.transform = ''; content.innerHTML = '<div class="empty">Нет файлов для показа с текущими фильтрами.</div>'; return; }
+  const top = vp.scrollTop, h = vp.clientHeight || 600;
+  const start = Math.max(0, Math.floor(top / ROW_H) - 10);
+  const end = Math.min(V.rows.length, Math.ceil((top + h) / ROW_H) + 10);
+  content.style.transform = `translateY(${start * ROW_H}px)`;
+  let html = '';
+  for (let i = start; i < end; i++) html += rowHTML(V.rows[i]);
+  content.innerHTML = html;
+}
+
+function renderDiag() {
+  const B = [
+    ['0 (точное совпадение)', d => d === 0], ['до 1 с', d => d < 1000], ['1–2 с', d => d <= 2000],
+    ['≈1 ч (±2 с): часовой пояс / летнее время', d => Math.abs(d - 3600000) <= 2000],
+    ['2 с – 1 мин', d => d <= 60000], ['1 мин – 1 ч', d => d <= 3600000],
+    ['1 ч – 1 сутки', d => d <= 86400000], ['больше суток', () => true]
+  ];
+  const cnt = B.map(() => [0, 0]);
+  for (const p of CMP.pairs) {
+    if (!p.a || !p.b) continue;
+    const i = B.findIndex(([, f]) => f(p.dd));
+    cnt[i][p.a.s === p.b.s ? 0 : 1]++;
+  }
+  document.getElementById('diag').innerHTML =
+    '<div>Разница дат у файлов, которые есть в обеих папках:</div><table class="diag"><tr><th>Разница</th><th>Размер одинаковый</th><th>Размер разный</th></tr>' +
+    B.map(([t], i) => `<tr><td>${esc(t)}</td><td class="num">${num(cnt[i][0])}</td><td class="num">${num(cnt[i][1])}</td></tr>`).join('') + '</table>';
+}
+
+function initResultsUI() {
+  const vp = document.getElementById('vp');
+  vp.addEventListener('scroll', () => {
+    if (!V.raf) V.raf = requestAnimationFrame(() => { V.raf = 0; renderRows(); });
+  });
+  window.addEventListener('resize', () => { if (CMP) renderRows(); });
+  document.getElementById('vcontent').addEventListener('click', e => {
+    const g = e.target.closest('.vr.g'); if (!g) return;
+    const k = g.dataset.g;
+    if (view.collapsed.has(k)) view.collapsed.delete(k); else view.collapsed.add(k);
+    buildRows(); renderRows();
+  });
+  let t = 0;
+  document.getElementById('search').addEventListener('input', e => {
+    clearTimeout(t);
+    t = setTimeout(() => { view.q = e.target.value; vp.scrollTop = 0; if (CMP) { buildRows(); renderRows(); } }, 150);
+  });
+  document.getElementById('onlyDiff').onchange = e => {
+    settings.onlyDiff = e.target.checked; view.st.same = !settings.onlyDiff; saveSettings(); renderResults();
+  };
+  document.getElementById('expandAll').onclick = () => { view.collapsed.clear(); buildRows(); renderRows(); };
+  document.getElementById('collapseAll').onclick = () => {
+    for (const p of CMP.pairs) view.collapsed.add(p.dirKey);
+    vp.scrollTop = 0; buildRows(); renderRows();
+  };
+  view.st.same = !settings.onlyDiff;
+}
+
+/* =====================================================================
+   БЛОК 10. ОТЧЁТ, ОБНОВЛЕНИЯ, ЗАПУСК
+   ===================================================================== */
 function buildReport() {
   const L = [];
-  const chrome = (navigator.userAgent.match(/Chrome\/[\d.]+/) || ['не определён'])[0];
-  L.push('Сравнение папок — этап 0, отчёт разведки');
+  const chrome = (navigator.userAgent.match(/(Edg|Chrome)\/[\d.]+/) || ['не определён'])[0];
+  L.push('Сравнение папок — этап 1, отчёт');
   L.push('Дата: ' + fmtDate(Date.now()));
-  L.push('Версия: ' + APP_VERSION + ' · браузер: ' + chrome + ' · открыто как: ' + location.protocol + ' · ' + launchMode());
-  L.push('Настройки: потоков ' + settings.conc + ', режим ' + (settings.mode === 'main' ? 'основной поток' : 'авто (Worker)'));
+  L.push(`Версия: ${APP_VERSION} · браузер: ${chrome} · ${launchMode()}`);
+  L.push(`Критерии: размер ${settings.size ? 'да' : 'нет'}, дата ${settings.date ? 'да, допуск ' + settings.tol + ' с' : 'нет'}` +
+    (settings.ext.trim() ? `, только расширения: ${settings.ext}` : ''));
+  L.push('Исключения: ' + (activeMasks().join(', ') || 'нет'));
   for (const s of sides) {
-    L.push('');
-    L.push(`--- ${SIDE_TITLES[s.id]}: ${s.handle ? '«' + s.handle.name + '»' : 'папка не выбрана'}`);
     const r = s.result;
-    if (!r) { L.push('Результата нет'); continue; }
-    const a = analyzeSide(r);
-    L.push(`Режим: ${r.mode}`);
-    L.push(`Файлов ${r.files.length}, подпапок ${r.dirs}, объём ${fmtSize(a.size)}, пустых ${a.zero}`);
-    L.push(`Время: список ${fmtTime(r.tList)}, размеры/даты ${fmtTime(r.tMeta)}, всего ${fmtTime(r.tTotal)} (${a.speed} файлов/с, потоков ${r.conc})`);
-    L.push(`Даты: с мс ${a.msPct}%, кратные 2 с ${a.even2Pct}%, от ${r.files.length ? fmtDate(a.minM) : '—'} до ${r.files.length ? fmtDate(a.maxM) : '—'}, в будущем ${a.future}`);
-    L.push(`Расширения: ${a.topExt.join(', ')}`);
-    L.push(`Ошибок: ${r.errors.length}`);
+    L.push('');
+    L.push(`--- ${SIDE_TITLES[s.id]}: ${r ? '«' + r.root + '»' : 'нет результата'}`);
+    if (!r) continue;
+    L.push(`Файлов ${r.files.length}, подпапок ${r.dirs}, ${fmtTime(r.tTotal)}, ${r.mode}, пропущено при обходе: папок ${r.skippedDirs}, файлов ${r.skippedFiles}, ошибок ${r.errors.length}`);
     r.errors.slice(0, 10).forEach(e => L.push(`  ${e.op}: ${e.p} — ${e.e}`));
   }
-  if (S.A.result && S.B.result) {
-    const p = analyzePairs(S.A.result, S.B.result);
+  if (CMP) {
+    const c = CMP.counts;
     L.push('');
-    L.push('--- Пары по одинаковому пути');
-    L.push(`Общих ${p.both} (регистр отличается ${p.caseDiff}), только слева ${p.onlyA}, только справа ${p.onlyB}, с одинаковым размером ${p.sameSize}`);
-    L.push('Разница дат: [размер одинаковый / разный]');
-    p.buckets.forEach(b => { if (b.same || b.diff) L.push(`  ${b.t}: ${b.same} / ${b.diff}`); });
-    p.ex.slice(0, 10).forEach(e => L.push(`  пример: ${e.p} — ${fmtTime(e.d)}`));
-    const lst = (t, arr) => { L.push(`${t}: ${arr.length}`); arr.slice(0, 50).forEach(e => L.push('  ' + e.p)); if (arr.length > 50) L.push('  …'); };
-    lst('Размер отличается', p.L.sizeDiff);
-    lst('Размер одинаковый, дата отличается', p.L.dateDiff);
-    lst('Только слева', p.L.onlyA);
-    lst('Только справа', p.L.onlyB);
+    L.push(`--- Итог: идентичны ${c.same}, изменены ${c.chg}, новые ${c.new}, удалены ${c.del}`);
+    for (const st of ['chg', 'new', 'del']) {
+      const arr = CMP.pairs.filter(p => p.status === st).sort((x, y) => collator.compare(x.pathL, y.pathL));
+      if (!arr.length) continue;
+      L.push(`${STATUS[st]} (${arr.length}):`);
+      arr.slice(0, 100).forEach(p => L.push('  ' + (p.b || p.a).p + (p.reason ? ' — ' + p.reason : '')));
+      if (arr.length > 100) L.push('  …');
+    }
   }
   L.push('');
-  L.push('--- Журнал (последние 40 строк)');
-  logLines.slice(-40).forEach(x => L.push(x));
+  L.push('--- Журнал (последние 30 строк)');
+  logLines.slice(-30).forEach(x => L.push(x));
   return L.join('\n');
 }
 
@@ -786,7 +1049,6 @@ async function copyReport() {
   }
 }
 
-/* --- Проверка обновлений --- */
 let shownUpdate = '';
 async function checkUpdate() {
   if (location.protocol !== 'https:') return;
@@ -797,7 +1059,7 @@ async function checkUpdate() {
     if (!v || v === APP_VERSION || v === shownUpdate) return;
     shownUpdate = v;
     const b = document.getElementById('updateBanner');
-    b.innerHTML = `<div class="msg"><span>Доступна новая версия <b>${esc(v)}</b> (у вас ${esc(APP_VERSION)}).</span>
+    b.innerHTML = `<div class="msg info"><span>Доступна новая версия <b>${esc(v)}</b> (у вас ${esc(APP_VERSION)}).</span>
       <button class="primary" id="btnUpdate">Обновить</button></div>`;
     b.hidden = false;
     document.getElementById('btnUpdate').onclick = applyUpdate;
@@ -812,56 +1074,47 @@ async function applyUpdate() {
   } catch (e) {}
   location.reload();
 }
-setTimeout(checkUpdate, 3000);
-setInterval(checkUpdate, 30 * 60 * 1000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
-/* --- Подключение событий и старт --- */
 for (const s of sides) {
   setupDrop(s);
   s.btn('pick').onclick = () => pick(s);
-  s.btn('pick3').onclick = () => pick(s, true);
-  s.btn('pick2').onclick = () => { log(`${s.id}: запасной способ — открываю окно`); s.q('dirinput').value = ''; s.q('dirinput').click(); };
+  s.btn('pick2').onclick = e => { e.preventDefault(); openFallback(s); };
   s.q('dirinput').onchange = () => loadFromInput(s);
   s.btn('reopen').onclick = () => reopen(s);
   s.btn('scan').onclick = () => scan(s);
   s.btn('cancel').onclick = () => { if (s.job) s.job.cancel(); };
-  s.btn('csv').onclick = () => exportCsv(s);
 }
-document.getElementById('btnBoth').onclick = scanBoth;
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
+document.getElementById('btnCompare').onclick = scanAndCompare;
 document.getElementById('btnReport').onclick = () => {
   document.getElementById('reportBox').hidden = false;
   document.getElementById('reportText').value = buildReport();
   document.getElementById('copyState').textContent = '';
 };
 document.getElementById('btnCopy').onclick = copyReport;
-
-const selConc = document.getElementById('setConc');
-const selMode = document.getElementById('setMode');
-selConc.value = String(settings.conc);
-if (selConc.value !== String(settings.conc)) { settings.conc = 8; selConc.value = '8'; }
-selMode.value = settings.mode;
-selConc.onchange = () => { settings.conc = +selConc.value; saveSettings(); log('Потоков чтения: ' + settings.conc); };
-selMode.onchange = () => { settings.mode = selMode.value; saveSettings(); log('Режим обхода: ' + selMode.options[selMode.selectedIndex].text); };
+document.getElementById('verLabel').textContent = `этап 1 · ${APP_VERSION}`;
+initSettingsUI();
+initResultsUI();
+renderResults();
+setTimeout(checkUpdate, 3000);
+setInterval(checkUpdate, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 (async function init() {
   if (!SUPPORTED) {
     document.getElementById('globalMsg').innerHTML =
-      '<div class="msg err">Этот браузер не даёт доступ к папкам. Откройте файл в Google Chrome (или Edge) на ПК.</div>';
+      '<div class="msg warn">Этот браузер не даёт постоянный доступ к папкам. Используйте запасной способ или откройте приложение в Chrome / Edge на ПК.</div>';
   }
   log('Браузер: ' + ((navigator.userAgent.match(/(Edg|Chrome)\/[\d.]+/) || ['?'])[0]));
-  log(`Запуск ${APP_VERSION}. Открыто как ${location.protocol}, ${launchMode()}, доступ к папкам: ${SUPPORTED ? 'есть' : 'нет'}`);
+  log(`Запуск ${APP_VERSION}. ${launchMode()}, доступ к папкам: ${SUPPORTED ? 'есть' : 'нет'}`);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => log('Работа без интернета: включена'))
-      .catch(e => log('Работа без интернета не включилась: ' + e.name));
+    navigator.serviceWorker.register('sw.js').catch(e => log('Работа без интернета не включилась: ' + e.name));
   }
   for (const s of sides) {
     try {
       const h = await IDB.get(s.id);
-      if (h) { s.saved = h; log(`${s.id}: найдена последняя папка «${h.name}»`); }
+      if (h) { s.saved = h; }
     } catch (e) { log(`${s.id}: память папок недоступна (${e.name})`); }
   }
   refreshButtons();
