@@ -45,6 +45,8 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
 #updateBanner{position:sticky;top:0;z-index:10;margin-bottom:14px}
 #updateBanner .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;font-size:14px}
+.card.drop{outline:3px dashed var(--accent);outline-offset:-6px;background:#eff6ff}
+.hint{font-size:12.5px;color:var(--muted);margin:2px 0 4px}
 #log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px}
 textarea{width:100%;height:280px;font-family:Consolas,monospace;font-size:12px}
 select{font:inherit;padding:3px}
@@ -54,7 +56,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.6 (PWA)</span>
+  <span class="ver">этап 0 · разведка · v0.7 (PWA)</span>
   <label>Потоков чтения свойств:
     <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
   </label>
@@ -398,7 +400,7 @@ function analyzePairs(a, b) {
    БЛОК 6. ИНТЕРФЕЙС
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.6';
+const APP_VERSION = 'v0.7';
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
 const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
@@ -416,6 +418,7 @@ function sideHTML(id) {
       <button data-act="cancel" disabled>Отмена</button>
       <button data-act="csv" disabled>Список в CSV</button>
     </div>
+    <div class="hint">Или перетащите папку сюда из Проводника.</div>
     <div class="row"><span class="muted">Папка:</span><span class="path" data-f="name">не выбрана</span></div>
     <div data-f="msg"></div>
     <div data-f="prog" hidden><div class="bar"><div></div></div><div class="muted path" data-f="progtext"></div></div>
@@ -476,7 +479,7 @@ async function pick(s, plain) {
     if (e.name === 'AbortError') {
       log(`${s.id}: выбор прерван — ${e.message || 'без описания'}`);
       showMsg(s, 'warn', 'Папка не выбрана: окно закрыто или Chrome отказал в доступе к этой папке. ' +
-        'Если вы папку выбирали и подтверждали — попробуйте кнопку «Запасной способ». [AbortError: ' + (e.message || '') + ']');
+        'Если вы папку выбирали и подтверждали — перетащите её сюда из Проводника или используйте «Запасной способ». [AbortError: ' + (e.message || '') + ']');
       return;
     }
     showMsg(s, 'err', explainError(e));
@@ -513,6 +516,37 @@ function loadFromInput(s) {
   showMsg(s, 'ok', 'Прочитано запасным способом. Пустые подпапки этим способом не видны; папка не запоминается.');
   log(`${s.id}: запасной способ — «${root}», файлов ${num(files.length)}, подпапок с файлами ${num(dirSet.size)}`);
   renderStats(s); renderTable(s); renderPairs(); refreshButtons();
+}
+
+// Перетаскивание папки из Проводника: даёт доступ без окна выбора папки.
+function setupDrop(s) {
+  const el = s.el;
+  let depth = 0;
+  el.addEventListener('dragenter', e => { e.preventDefault(); depth++; el.classList.add('drop'); });
+  el.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; el.classList.remove('drop'); } });
+  el.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  el.addEventListener('drop', e => {
+    e.preventDefault(); depth = 0; el.classList.remove('drop');
+    if (s.job) return;
+    const items = [...(e.dataTransfer.items || [])].filter(i => i.kind === 'file');
+    if (!items.length) { log(`${s.id}: перетаскивание — нет папки`); return; }
+    if (items.length > 1) { showMsg(s, 'warn', 'Перетащите одну папку.'); return; }
+    if (!items[0].getAsFileSystemHandle) { showMsg(s, 'err', 'Этот браузер не поддерживает перетаскивание папок. Используйте «Запасной способ…».'); return; }
+    const hp = items[0].getAsFileSystemHandle(); // вызывать сразу, до любого await
+    log(`${s.id}: папка перетащена, получаю доступ`);
+    hp.then(async h => {
+      if (!h || h.kind !== 'directory') { showMsg(s, 'warn', 'Перетащите папку, а не файл.'); return; }
+      setHandle(s, h); s.saved = h;
+      try { await IDB.put(s.id, h); } catch (er) { log(`${s.id}: не удалось запомнить папку (${er.name})`); }
+      let st = '?'; try { st = await h.queryPermission({ mode: 'read' }); } catch (er) {}
+      log(`${s.id}: перетащена папка «${h.name}», разрешение: ${st}`);
+      refreshButtons();
+      showMsg(s, 'ok', 'Папка получена перетаскиванием. Нажмите «Сканировать».');
+    }).catch(er => {
+      showMsg(s, 'err', 'Не удалось получить папку перетаскиванием. ' + explainError(er));
+      log(`${s.id}: ошибка перетаскивания — ${er.name}: ${er.message}`);
+    });
+  });
 }
 
 async function ensurePermission(s, h) {
@@ -784,6 +818,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 /* --- Подключение событий и старт --- */
 for (const s of sides) {
+  setupDrop(s);
   s.btn('pick').onclick = () => pick(s);
   s.btn('pick3').onclick = () => pick(s, true);
   s.btn('pick2').onclick = () => { log(`${s.id}: запасной способ — открываю окно`); s.q('dirinput').value = ''; s.q('dirinput').click(); };
@@ -794,6 +829,8 @@ for (const s of sides) {
   s.btn('csv').onclick = () => exportCsv(s);
 }
 document.getElementById('btnBoth').onclick = scanBoth;
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
 document.getElementById('btnReport').onclick = () => {
   document.getElementById('reportBox').hidden = false;
   document.getElementById('reportText').value = buildReport();
