@@ -54,7 +54,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.4 (PWA)</span>
+  <span class="ver">этап 0 · разведка · v0.5 (PWA)</span>
   <label>Потоков чтения свойств:
     <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
   </label>
@@ -398,7 +398,7 @@ function analyzePairs(a, b) {
    БЛОК 6. ИНТЕРФЕЙС
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.4';
+const APP_VERSION = 'v0.5';
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
 const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
@@ -408,6 +408,8 @@ function sideHTML(id) {
     <h2>${SIDE_TITLES[id]}</h2>
     <div class="row">
       <button data-act="pick">Выбрать папку…</button>
+      <button data-act="pick2" title="Через обычное окно загрузки. Папка не запоминается, файлы никуда не отправляются.">Запасной способ…</button>
+      <input type="file" data-f="dirinput" webkitdirectory multiple hidden>
       <button data-act="reopen" disabled>Открыть последнюю</button>
       <button data-act="scan" class="primary" disabled>Сканировать</button>
       <button data-act="cancel" disabled>Отмена</button>
@@ -439,13 +441,14 @@ function clearMsg(s) { s.q('msg').innerHTML = ''; }
 function refreshButtons() {
   for (const s of sides) {
     s.btn('pick').disabled = !!s.job || !SUPPORTED;
+    s.btn('pick2').disabled = !!s.job;
     s.btn('reopen').disabled = !!s.job || !s.saved;
     s.btn('scan').disabled = !!s.job || !s.handle;
     s.btn('cancel').disabled = !s.job;
     s.btn('csv').disabled = !!s.job || !s.result;
     s.btn('reopen').textContent = s.saved ? `Открыть последнюю: «${s.saved.name}»` : 'Открыть последнюю';
   }
-  document.getElementById('btnBoth').disabled = !(S.A.handle && S.B.handle) || !!S.A.job || !!S.B.job;
+  document.getElementById('btnBoth').disabled = !(S.A.handle || S.B.handle) || !!S.A.job || !!S.B.job;
 }
 
 function setHandle(s, h) {
@@ -458,18 +461,56 @@ function setHandle(s, h) {
 }
 
 async function pick(s) {
+  log(`${s.id}: открываю окно выбора папки`);
   try {
     const h = await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
+    log(`${s.id}: Chrome вернул папку «${h.name}»`);
     setHandle(s, h);
     s.saved = h;
     try { await IDB.put(s.id, h); } catch (e) { log(`${s.id}: не удалось запомнить папку (${e.name})`); }
     log(`${s.id}: выбрана папка «${h.name}»`);
     refreshButtons();
   } catch (e) {
-    if (e.name === 'AbortError') return;
+    if (e.name === 'AbortError') {
+      log(`${s.id}: выбор прерван — ${e.message || 'без описания'}`);
+      showMsg(s, 'warn', 'Папка не выбрана: окно закрыто или Chrome отказал в доступе к этой папке. ' +
+        'Если вы папку выбирали и подтверждали — попробуйте кнопку «Запасной способ». [AbortError: ' + (e.message || '') + ']');
+      return;
+    }
     showMsg(s, 'err', explainError(e));
     log(`${s.id}: ошибка выбора папки — ${e.name}: ${e.message}`);
   }
+}
+
+// Запасной способ: обычный выбор папки через <input webkitdirectory>.
+// Файлы не загружаются никуда — читаются только имя, размер и дата.
+function loadFromInput(s) {
+  const fl = s.q('dirinput').files;
+  if (!fl || !fl.length) { log(`${s.id}: запасной способ — папка не выбрана или пустая`); return; }
+  const t0 = performance.now();
+  const files = [], dirSet = new Set();
+  let root = '';
+  for (const f of fl) {
+    const rp = f.webkitRelativePath || f.name;
+    const i = rp.indexOf('/');
+    if (!root) root = i > 0 ? rp.slice(0, i) : '(папка)';
+    const p = i > 0 ? rp.slice(i + 1) : rp;
+    files.push({ p, s: f.size, m: f.lastModified });
+    const parts = p.split('/'); parts.pop();
+    let acc = '';
+    for (const part of parts) { acc = acc ? acc + '/' + part : part; dirSet.add(acc); }
+  }
+  const t = performance.now() - t0;
+  s.handle = null;
+  s.q('name').textContent = root + '  (запасной способ)';
+  const res = { files, errors: [], dirs: dirSet.size, tList: t, tMeta: 0, tTotal: t, conc: 0,
+    mode: 'запасной способ (input)', root, when: Date.now() };
+  s.result = res;
+  s.sorted = files.slice().sort((x, y) => collator.compare(x.p, y.p));
+  clearMsg(s);
+  showMsg(s, 'ok', 'Прочитано запасным способом. Пустые подпапки этим способом не видны; папка не запоминается.');
+  log(`${s.id}: запасной способ — «${root}», файлов ${num(files.length)}, подпапок с файлами ${num(dirSet.size)}`);
+  renderStats(s); renderTable(s); renderPairs(); refreshButtons();
 }
 
 async function ensurePermission(s, h) {
@@ -479,13 +520,19 @@ async function ensurePermission(s, h) {
   if (st === 'granted') return true;
   st = await h.requestPermission(o);
   log(`${s.id}: запрос разрешения → ${st}`);
+  s.lastPerm = st;
   return st === 'granted';
 }
 
 async function permOrMsg(s, h) {
   try {
     if (await ensurePermission(s, h)) return true;
-    showMsg(s, 'warn', 'Доступ не разрешён. Нажмите кнопку ещё раз и в окне Chrome выберите «Разрешить» (или «Просмотреть файлы»).');
+    if (s.lastPerm === 'denied')
+      showMsg(s, 'warn', 'Chrome запретил доступ к этой папке (ответ «Не разрешать» или блокировка). ' +
+        'Нажмите «Выбрать папку…» и выберите её заново, либо сбросьте запрет: значок слева от адреса → «Настройки сайтов» → «Файлы».');
+    else
+      showMsg(s, 'warn', 'Окно разрешения Chrome закрылось без ответа. Нажмите кнопку ещё раз и в окне вверху страницы выберите «Разрешить». ' +
+        'Если окно не появляется — нажмите «Выбрать папку…» и выберите папку заново.');
   } catch (e) {
     showMsg(s, 'err', 'Chrome не дал запросить разрешение. Нажмите «Сканировать» у этой папки отдельно. ' + explainError(e));
     log(`${s.id}: запрос разрешения не выполнен — ${e.name}: ${e.message}`);
@@ -554,8 +601,8 @@ async function scan(s, skipPerm) {
 
 async function scanBoth() {
   // Сначала оба разрешения (пока действует нажатие кнопки), потом обход по очереди
-  for (const s of sides) if (!(await permOrMsg(s, s.handle))) return;
-  for (const s of sides) await scan(s, true);
+  for (const s of sides) if (s.handle && !(await permOrMsg(s, s.handle))) return;
+  for (const s of sides) if (s.handle) await scan(s, true);
 }
 
 function renderStats(s) {
@@ -736,6 +783,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* --- Подключение событий и старт --- */
 for (const s of sides) {
   s.btn('pick').onclick = () => pick(s);
+  s.btn('pick2').onclick = () => { log(`${s.id}: запасной способ — открываю окно`); s.q('dirinput').value = ''; s.q('dirinput').click(); };
+  s.q('dirinput').onchange = () => loadFromInput(s);
   s.btn('reopen').onclick = () => reopen(s);
   s.btn('scan').onclick = () => scan(s);
   s.btn('cancel').onclick = () => { if (s.job) s.job.cancel(); };
