@@ -54,7 +54,7 @@ details summary{cursor:pointer;font-weight:600;margin:8px 0}
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
-  <span class="ver">этап 0 · разведка · v0.5 (PWA)</span>
+  <span class="ver">этап 0 · разведка · v0.6 (PWA)</span>
   <label>Потоков чтения свойств:
     <select id="setConc"><option>1</option><option>4</option><option>8</option><option>16</option><option>32</option></select>
   </label>
@@ -398,7 +398,7 @@ function analyzePairs(a, b) {
    БЛОК 6. ИНТЕРФЕЙС
    ===================================================================== */
 const SUPPORTED = 'showDirectoryPicker' in window;
-const APP_VERSION = 'v0.5';
+const APP_VERSION = 'v0.6';
 const launchMode = () => (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)
   ? 'установленное приложение' : 'вкладка браузера';
 const SIDE_TITLES = { A: 'Слева (A)', B: 'Справа (B)' };
@@ -408,6 +408,7 @@ function sideHTML(id) {
     <h2>${SIDE_TITLES[id]}</h2>
     <div class="row">
       <button data-act="pick">Выбрать папку…</button>
+      <button data-act="pick3" title="Диагностика: то же окно выбора, но без дополнительных параметров">Тест выбора</button>
       <button data-act="pick2" title="Через обычное окно загрузки. Папка не запоминается, файлы никуда не отправляются.">Запасной способ…</button>
       <input type="file" data-f="dirinput" webkitdirectory multiple hidden>
       <button data-act="reopen" disabled>Открыть последнюю</button>
@@ -442,6 +443,7 @@ function refreshButtons() {
   for (const s of sides) {
     s.btn('pick').disabled = !!s.job || !SUPPORTED;
     s.btn('pick2').disabled = !!s.job;
+    s.btn('pick3').disabled = !!s.job || !SUPPORTED;
     s.btn('reopen').disabled = !!s.job || !s.saved;
     s.btn('scan').disabled = !!s.job || !s.handle;
     s.btn('cancel').disabled = !s.job;
@@ -460,10 +462,10 @@ function setHandle(s, h) {
   renderPairs(); refreshButtons();
 }
 
-async function pick(s) {
-  log(`${s.id}: открываю окно выбора папки`);
+async function pick(s, plain) {
+  log(`${s.id}: открываю окно выбора папки${plain ? ' (тест: без параметров)' : ''}`);
   try {
-    const h = await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
+    const h = plain ? await window.showDirectoryPicker() : await window.showDirectoryPicker({ id: 'cmp-' + s.id, mode: 'read' });
     log(`${s.id}: Chrome вернул папку «${h.name}»`);
     setHandle(s, h);
     s.saved = h;
@@ -783,6 +785,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* --- Подключение событий и старт --- */
 for (const s of sides) {
   s.btn('pick').onclick = () => pick(s);
+  s.btn('pick3').onclick = () => pick(s, true);
   s.btn('pick2').onclick = () => { log(`${s.id}: запасной способ — открываю окно`); s.q('dirinput').value = ''; s.q('dirinput').click(); };
   s.q('dirinput').onchange = () => loadFromInput(s);
   s.btn('reopen').onclick = () => reopen(s);
@@ -811,6 +814,7 @@ selMode.onchange = () => { settings.mode = selMode.value; saveSettings(); log('�
     document.getElementById('globalMsg').innerHTML =
       '<div class="msg err">Этот браузер не даёт доступ к папкам. Откройте файл в Google Chrome (или Edge) на ПК.</div>';
   }
+  log('Браузер: ' + ((navigator.userAgent.match(/(Edg|Chrome)\/[\d.]+/) || ['?'])[0]));
   log(`Запуск ${APP_VERSION}. Открыто как ${location.protocol}, ${launchMode()}, доступ к папкам: ${SUPPORTED ? 'есть' : 'нет'}`);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js')
