@@ -63,7 +63,7 @@ header .menu-btn{margin-left:auto;background:transparent;color:#fff;border-color
 textarea{width:100%;height:260px;font-family:Consolas,monospace;font-size:12px}
 
 /* Настройки */
-.set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:10px}
+.set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:18px;margin-top:10px}
 .set-grid h3{font-size:14px;margin:0 0 6px}
 .excl-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}
 .excl-item{display:flex;gap:6px;align-items:center}
@@ -100,13 +100,56 @@ textarea{width:100%;height:260px;font-family:Consolas,monospace;font-size:12px}
 table.diag{border-collapse:collapse;font-size:13px;margin-top:8px}
 table.diag td,table.diag th{border-bottom:1px solid var(--line);padding:3px 10px;text-align:left}
 table.diag td.num{text-align:right}
+
+/* ===== Телефон (узкий экран) ===== */
+@media (max-width: 640px) {
+  body{font-size:15px}
+  header{padding:8px 10px;gap:8px;flex-wrap:nowrap}
+  header h1{font-size:16px;white-space:nowrap}
+  header .ver{font-size:11px;white-space:nowrap}
+  header .menu-btn{padding:4px 10px;font-size:18px;line-height:1;flex:none}
+  header .menu-btn .ml{display:none}
+  #menu{right:10px;min-width:220px}
+  main{padding:10px}
+  .card{padding:12px;margin-bottom:10px}
+  .sides{gap:10px}
+  .card .row{gap:6px}
+  [id^="side-"] .row:first-of-type{display:grid;grid-template-columns:1fr 1fr}
+  [id^="side-"] .row:first-of-type button{width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #btnCompare,#btnReport{flex:1 1 100%}
+  input[type=text],input[type=number],input[type=search],select{font-size:16px}
+  #search{width:100% !important}
+  #viewBar{gap:8px}
+  .summary{gap:6px}
+  .chip{font-size:13px}
+  .vwrap{overflow-x:hidden}
+  .vtable{min-width:0}
+  .vhead{display:none}
+  .vp{height:65vh}
+  .vr{height:52px;line-height:normal}
+  .vr.g{align-items:center;flex-wrap:nowrap}
+  .vr.g .path{overflow:hidden;text-overflow:ellipsis}
+  .vr.f{grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"nm nm nm nm" "stc sa sb dd";align-content:center;row-gap:2px}
+  .vr.f>div{padding:0 6px}
+  .vr.f .nm{grid-area:nm;padding-left:22px;font-weight:600}
+  .vr.f .stc{grid-area:stc;padding-left:22px;font-size:12.5px}
+  .vr.f .sa{grid-area:sa;font-size:12.5px}
+  .vr.f .sb{grid-area:sb;font-size:12.5px}
+  .vr.f .sb:not(:empty)::before{content:"→ ";color:var(--muted);font-weight:400}
+  .vr.f .sa:empty+.sb::before{content:""}
+  .vr.f .dd{grid-area:dd;font-size:12.5px}
+  .vr.f .da,.vr.f .db{display:none}
+  .hint{font-size:12.5px}
+  .dragtxt{display:none}
+  textarea{height:200px}
+}
 </style>
 </head>
 <body>
 <header>
   <h1>Сравнение папок и файлов</h1>
   <span class="ver" id="verLabel">этап 1</span>
-  <button class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false">☰ Меню</button>
+  <button class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="Меню">☰<span class="ml"> Меню</span></button>
   <div id="menu" hidden>
     <button data-m="up">Проверить обновления</button>
     <div class="menu-foot" id="menuFoot"></div>
@@ -197,9 +240,10 @@ table.diag td.num{text-align:right}
 <script>
 'use strict';
 // ВАЖНО: при каждой публикации увеличивать APP_VERSION здесь и VERSION в sw.js вместе.
-const APP_VERSION = '1.3', APP_DATE = '15.11.2026';
+const APP_VERSION = '1.4', APP_DATE = '15.11.2026';
 // Что нового в каждой версии (показывается один раз после обновления).
 const CHANGES = {
+  '1.4': ['Раскладка для телефона: шапка в одну строку, кнопки во всю ширину, таблица без горизонтальной прокрутки'],
   '1.3': ['Новая версия больше не ставится сама: она ждёт, пока вы нажмёте «Обновить»', 'Меню: «Проверить обновления» и номер версии'],
   'v1.2': ['Уведомление о новой версии со списком изменений', 'После обновления — сообщение «Что нового»'],
   'v1.1': ['Работа без интернета больше не стирает офлайн-копии других приложений'],
@@ -554,7 +598,7 @@ function sideHTML(id) {
       <button data-act="scan" class="primary" disabled>Сканировать</button>
       <button data-act="cancel" disabled>Отмена</button>
     </div>
-    <div class="hint">Или перетащите папку сюда из Проводника · <a href="#" data-act="pick2">запасной способ</a> (папка не запоминается)</div>
+    <div class="hint"><span class="dragtxt">Или перетащите папку сюда из Проводника · </span><a href="#" data-act="pick2">запасной способ</a> (папка не запоминается)</div>
     <input type="file" data-f="dirinput" webkitdirectory multiple hidden>
     <div class="row"><span class="muted">Папка:</span><span class="path" data-f="name">не выбрана</span></div>
     <div data-f="msg"></div>
@@ -873,7 +917,9 @@ function initSettingsUI() {
    ===================================================================== */
 let CMP = null;                 // { pairs, counts, exclA, exclB, stale }
 const view = { st: { same: true, chg: true, new: true, del: true }, q: '', collapsed: new Set() };
-const ROW_H = 28;
+// Высота строки: ПК — одна строка, телефон — два яруса (имя / статус, размеры, разница).
+const PHONE_MQ = window.matchMedia('(max-width: 640px)');
+let ROW_H = PHONE_MQ.matches ? 52 : 28;
 const V = { rows: [], raf: 0 };
 
 function recompute() {
@@ -959,11 +1005,11 @@ function rowHTML(r) {
   return `<div class="vr f st-${p.status}" title="${esc(tip)}">` +
     `<div class="stc">${STATUS[p.status]}${p.reason ? ` <span class="muted" style="font-weight:400">(${p.reason})</span>` : ''}</div>` +
     `<div class="nm">${esc(p.name)}</div>` +
-    `<div class="num${p.sizeDiff ? ' dif' : ''}">${a ? num(a.s) : ''}</div>` +
-    `<div class="num${p.sizeDiff ? ' dif' : ''}">${b ? num(b.s) : ''}</div>` +
-    `<div${p.dateDiff ? ' class="dif"' : ''}>${a ? fmtDate(a.m) : ''}</div>` +
-    `<div${p.dateDiff ? ' class="dif"' : ''}>${b ? fmtDate(b.m) : ''}</div>` +
-    `<div class="num">${a && b && p.dd ? fmtDelta(p.dd) : ''}</div></div>`;
+    `<div class="num sa${p.sizeDiff ? ' dif' : ''}">${a ? num(a.s) : ''}</div>` +
+    `<div class="num sb${p.sizeDiff ? ' dif' : ''}">${b ? num(b.s) : '' }</div>` +
+    `<div class="da${p.dateDiff ? ' dif' : ''}">${a ? fmtDate(a.m) : ''}</div>` +
+    `<div class="db${p.dateDiff ? ' dif' : ''}">${b ? fmtDate(b.m) : ''}</div>` +
+    `<div class="num dd">${a && b && p.dd ? fmtDelta(p.dd) : ''}</div></div>`;
 }
 
 function renderRows() {
@@ -1023,6 +1069,10 @@ function initResultsUI() {
     vp.scrollTop = 0; buildRows(); renderRows();
   };
   view.st.same = !settings.onlyDiff;
+  PHONE_MQ.addEventListener('change', () => {
+    ROW_H = PHONE_MQ.matches ? 52 : 28;
+    if (CMP) { buildRows(); renderRows(); }
+  });
 }
 
 /* =====================================================================

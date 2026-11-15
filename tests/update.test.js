@@ -3,6 +3,9 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const NEW = process.argv[2], OLD = process.argv[3], ONLY_B = process.argv[4] === 'B';
+// текущая версия и дата берутся из файла; «следующие» версии — тестовые
+const [, CUR, CUR_DATE] = fs.readFileSync(path.join(NEW, 'index.html'), 'utf8').match(/const APP_VERSION = '([^']+)', APP_DATE = '([^']+)'/);
+const N1 = CUR + '.1', N2 = CUR + '.2';
 let ROOT = null; const PORT = 8790;
 const T = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const srv = http.createServer((q, r) => {
@@ -58,48 +61,48 @@ async function foreignOk(p) {
     await makeForeign(p);
     await p.goto(APP); await waitCtrl(p); await p.reload(); await p.waitForTimeout(500);
     const v0 = await ver(p);
-    check(v0.includes('1.3'), 'установлена версия 1.3: ' + v0);
+    check(v0.includes(CUR), 'установлена версия ' + CUR + ': ' + v0);
     check(await p.isHidden('#updateBanner'), 'панели «Обновить» нет, пока новой версии нет');
     await p.click('#menuBtn');
-    check((await p.textContent('#menuFoot')) === 'Версия 1.3 от 15.11.2026', 'внизу меню: ' + await p.textContent('#menuFoot'));
+    check((await p.textContent('#menuFoot')) === `Версия ${CUR} от ${CUR_DATE}`, 'внизу меню: ' + await p.textContent('#menuFoot'));
     await p.click('#menu [data-m="up"]'); await p.waitForTimeout(2000);
-    check((await p.textContent('#toast')).includes('Установлена последняя версия (1.3)'), '«Проверить обновления» без новой версии: ' + await p.textContent('#toast'));
+    check((await p.textContent('#toast')).includes(`Установлена последняя версия (${CUR})`), '«Проверить обновления» без новой версии: ' + await p.textContent('#toast'));
 
-    publish(NEW, '1.4', '16.11.2026');                       // «опубликовали» 1.4
+    publish(NEW, N1, '16.11.2026');                          // «опубликовали» следующую версию
     await p.click('#menuBtn'); await p.click('#menu [data-m="up"]');
     await p.waitForSelector('#updateBanner:not([hidden])', { timeout: 8000 }).catch(() => {});
     check(await p.isVisible('#updateBanner'), 'после «Проверить обновления» появилась панель «Доступна новая версия — Обновить»');
-    check((await ver(p)).includes('1.3'), 'старая версия продолжает работать, пока не нажато «Обновить»');
+    check((await ver(p)).endsWith(CUR), 'старая версия продолжает работать, пока не нажато «Обновить»');
     await p.reload(); await p.waitForTimeout(800);
-    check((await ver(p)).includes('1.3'), 'перезагрузка страницы без нажатия НЕ ставит новую версию: ' + await ver(p));
+    check((await ver(p)).endsWith(CUR), 'перезагрузка страницы без нажатия НЕ ставит новую версию: ' + await ver(p));
     check(await p.isVisible('#updateBanner'), 'при открытии панель «Обновить» показана сразу (новая версия ждёт)');
     await Promise.all([p.waitForNavigation({ timeout: 10000 }), p.click('#btnUpdate')]);
     await p.waitForTimeout(500);
-    check((await ver(p)).includes('1.4'), 'после «Обновить» загружена новая версия: ' + await ver(p));
+    check((await ver(p)).endsWith(N1), 'после «Обновить» загружена новая версия: ' + await ver(p));
     check(await p.isHidden('#updateBanner'), 'панели «Обновить» больше нет');
-    check((await p.textContent('#whatsNew')).includes('1.3 → 1.4'), 'показано «Приложение обновлено: 1.3 → 1.4»');
-    await p.click('#menuBtn'); check((await p.textContent('#menuFoot')) === 'Версия 1.4 от 16.11.2026', 'в меню новая версия и дата'); await p.keyboard.press('Escape');
+    check((await p.textContent('#whatsNew')).includes(`${CUR} → ${N1}`), `показано «Приложение обновлено: ${CUR} → ${N1}»`);
+    await p.click('#menuBtn'); check((await p.textContent('#menuFoot')) === `Версия ${N1} от 16.11.2026`, 'в меню новая версия и дата'); await p.keyboard.press('Escape');
     let k = await keys(p);
     check(await foreignOk(p), 'чужие кэши razmery-1.0, shablony-2.3, apps-1 на месте, содержимое цело');
-    check(JSON.stringify(k.filter(x => x.startsWith('sravnenie-'))) === '["sravnenie-1.4"]', 'свой кэш только новый: ' + k.filter(x => x.startsWith('sravnenie-')));
+    check(JSON.stringify(k.filter(x => x.startsWith('sravnenie-'))) === JSON.stringify(['sravnenie-' + N1]), 'свой кэш только новый: ' + k.filter(x => x.startsWith('sravnenie-')));
 
     await ctx.setOffline(true); await p.reload(); await p.waitForTimeout(500);
-    check((await ver(p)).includes('1.4'), 'без сети приложение открывается (версия 1.4)');
+    check((await ver(p)).endsWith(N1), 'без сети приложение открывается (новая версия)');
     await ctx.setOffline(false);
 
-    publish(NEW, '1.5', '17.11.2026');                       // проверка через возврат в приложение
+    publish(NEW, N2, '17.11.2026');                       // проверка через возврат в приложение
     await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
     await p.waitForSelector('#updateBanner:not([hidden])', { timeout: 8000 }).catch(() => {});
     check(await p.isVisible('#updateBanner'), 'при возврате в приложение новая версия найдена, панель «Обновить» показана');
-    check((await ver(p)).includes('1.4'), 'и до нажатия работает прежняя 1.4');
+    check((await ver(p)).endsWith(N1), 'и до нажатия работает прежняя версия');
     await Promise.all([p.waitForNavigation({ timeout: 10000 }), p.click('#btnUpdate')]); await p.waitForTimeout(400);
-    check((await ver(p)).includes('1.5'), 'после «Обновить» — 1.5');
+    check((await ver(p)).endsWith(N2), 'после «Обновить» — следующая версия');
     check(await foreignOk(p), 'чужие кэши снова на месте');
     check(errs.length === 0, 'ошибок на странице нет' + (errs.length ? ': ' + errs.join('; ') : ''));
     await ctx.close(); }
 
   // ===== B. Переход с опубликованной v1.2 =====
-  if (OLD) { console.log('B. Переход с опубликованной v1.2 на 1.3');
+  if (OLD) { console.log('B. Переход с опубликованной v1.2 на ' + CUR);
     const ctx = await b.newContext(); const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
     publish(OLD);
     await p.goto(APP); check(await waitCtrl(p), 'v1.2 установила работу без интернета'); await p.reload(); await p.waitForTimeout(500);
@@ -111,16 +114,16 @@ async function foreignOk(p) {
     await Promise.all([p.waitForNavigation({ timeout: 10000 }).catch(() => console.log('    (нет перезагрузки после 1-го нажатия)')), p.click('#btnUpdate')]);
     await p.waitForTimeout(1500);
     console.log('    после 1-го нажатия:', await ver(p), '| панель:', await p.isVisible('#updateBanner'));
-    if ((await ver(p)).includes('1.3') && await p.isVisible('#updateBanner')) {
+    if ((await ver(p)).endsWith(CUR) && await p.isVisible('#updateBanner')) {
       await Promise.all([p.waitForNavigation({ timeout: 10000 }).catch(() => console.log('    (нет перезагрузки после 2-го нажатия)')), p.click('#btnUpdate')]); await p.waitForTimeout(600);
     }
-    check((await ver(p)).includes('1.3'), 'после обновления работает 1.3: ' + await ver(p));
+    check((await ver(p)).endsWith(CUR), 'после обновления работает ' + CUR + ': ' + await ver(p));
     const sc = await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return r.active && r.active.scriptURL; });
     const k = await keys(p);
-    check(JSON.stringify(k.filter(x => x.startsWith('sravnenie-'))) === '["sravnenie-1.3"]', 'свой кэш только новый: ' + k.filter(x => x.startsWith('sravnenie-')));
+    check(JSON.stringify(k.filter(x => x.startsWith('sravnenie-'))) === JSON.stringify(['sravnenie-' + CUR]), 'свой кэш только новый: ' + k.filter(x => x.startsWith('sravnenie-')));
     check(await foreignOk(p), 'чужие кэши при переходе не тронуты');
     await ctx.setOffline(true); await p.reload(); await p.waitForTimeout(500);
-    check((await ver(p)).includes('1.3'), 'без сети открывается 1.3'); await ctx.setOffline(false);
+    check((await ver(p)).endsWith(CUR), 'без сети открывается ' + CUR); await ctx.setOffline(false);
     check(errs.length === 0, 'ошибок на странице нет' + (errs.length ? ': ' + errs.join('; ') : ''));
     await ctx.close(); }
 
