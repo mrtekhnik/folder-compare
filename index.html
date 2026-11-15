@@ -49,7 +49,9 @@ input[type=text],input[type=number],input[type=search],select{font:inherit;paddi
 details>summary{cursor:pointer;font-weight:600}
 details.card>summary{font-size:15px}
 #updateBanner{position:sticky;top:0;z-index:10;margin-bottom:14px}
-#updateBanner .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
+#updateBanner .msg,#whatsNew .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
+#whatsNew{margin-bottom:14px}
+.notes{margin:4px 0 0;padding-left:20px;flex-basis:100%}
 #log{font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;background:#f9fafb;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:8px}
 textarea{width:100%;height:260px;font-family:Consolas,monospace;font-size:12px}
 
@@ -100,6 +102,7 @@ table.diag td.num{text-align:right}
 </header>
 <main>
   <div id="updateBanner" hidden></div>
+  <div id="whatsNew" hidden></div>
   <div id="globalMsg"></div>
 
   <div class="sides" id="sides"></div>
@@ -180,7 +183,13 @@ table.diag td.num{text-align:right}
 
 <script>
 'use strict';
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v1.2';
+// Что нового в каждой версии (показывается один раз после обновления).
+const CHANGES = {
+  'v1.2': ['Уведомление о новой версии со списком изменений', 'После обновления — сообщение «Что нового»'],
+  'v1.1': ['Работа без интернета больше не стирает офлайн-копии других приложений'],
+  'v1.0': ['Этап 1: сравнение папок, исключения по маскам, таблица с группировкой и фильтрами']
+};
 
 /* =====================================================================
    БЛОК 1. ОБХОД ПАПКИ
@@ -1050,22 +1059,41 @@ async function copyReport() {
 }
 
 let shownUpdate = '';
+const notesHTML = arr => Array.isArray(arr) && arr.length
+  ? '<ul class="notes">' + arr.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>' : '';
 async function checkUpdate() {
-  if (location.protocol !== 'https:') return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) return;
-    const v = (await r.json()).version;
+    const info = await r.json();
+    const v = info.version;
     if (!v || v === APP_VERSION || v === shownUpdate) return;
     shownUpdate = v;
     const b = document.getElementById('updateBanner');
     b.innerHTML = `<div class="msg info"><span>Доступна новая версия <b>${esc(v)}</b> (у вас ${esc(APP_VERSION)}).</span>
-      <button class="primary" id="btnUpdate">Обновить</button></div>`;
+      <button class="primary" id="btnUpdate">Обновить</button>${notesHTML(info.notes)}</div>`;
     b.hidden = false;
     document.getElementById('btnUpdate').onclick = applyUpdate;
     log('Найдена новая версия ' + v);
   } catch (e) { /* нет сети — проверим позже */ }
 }
+// Один раз после обновления: «Приложение обновлено до vX» и что нового.
+const SEEN_KEY = 'folder-compare-seen-version';
+function showWhatsNew() {
+  let seen = null;
+  try { seen = localStorage.getItem(SEEN_KEY); } catch (e) { return; }
+  if (seen === APP_VERSION) return;
+  try { localStorage.setItem(SEEN_KEY, APP_VERSION); } catch (e) {}
+  if (!seen) return; // первый запуск — сообщать не о чем
+  const box = document.getElementById('whatsNew');
+  box.innerHTML = `<div class="msg ok"><span>Приложение обновлено: <b>${esc(seen)} → ${esc(APP_VERSION)}</b>.</span>
+    <button class="small" id="btnWhatsNewOk">Понятно</button>${notesHTML(CHANGES[APP_VERSION])}</div>`;
+  box.hidden = false;
+  document.getElementById('btnWhatsNewOk').onclick = () => { box.hidden = true; };
+  log(`Обновлено: ${seen} → ${APP_VERSION}`);
+}
+
 async function applyUpdate() {
   if (sides.some(s => s.job) && !confirm('Идёт обход папки. Обновить сейчас? Обход прервётся.')) return;
   try {
@@ -1097,6 +1125,7 @@ document.getElementById('verLabel').textContent = `этап 1 · ${APP_VERSION}`
 initSettingsUI();
 initResultsUI();
 renderResults();
+showWhatsNew();
 setTimeout(checkUpdate, 3000);
 setInterval(checkUpdate, 30 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });

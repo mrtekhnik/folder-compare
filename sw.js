@@ -2,7 +2,7 @@
 // На домене mrtekhnik.github.io живут и другие приложения со своими кэшами,
 // поэтому этот файл трогает ТОЛЬКО кэши с префиксом PREFIX.
 const PREFIX = 'sravnenie-';
-const VERSION = PREFIX + 'v1.1';
+const VERSION = PREFIX + 'v1.2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
