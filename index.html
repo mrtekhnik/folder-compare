@@ -48,6 +48,13 @@ input[type=text],input[type=number],input[type=search],select{font:inherit;paddi
 .stats b{color:var(--text);font-weight:600}
 details>summary{cursor:pointer;font-weight:600}
 details.card>summary{font-size:15px}
+header{position:relative}
+header .menu-btn{margin-left:auto;background:transparent;color:#fff;border-color:#4b5563}
+#menu{position:absolute;right:20px;top:calc(100% + 4px);background:#fff;color:var(--text);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:260px;z-index:30;overflow:hidden}
+#menu button{display:block;width:100%;text-align:left;border:0;border-radius:0;padding:10px 14px}
+#menu button:hover{background:#f3f4f6}
+#menu .menu-foot{padding:8px 14px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:#222a33;color:#fff;border-radius:20px;padding:8px 18px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 #updateBanner{position:sticky;top:0;z-index:10;margin-bottom:14px}
 #updateBanner .msg,#whatsNew .msg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
 #whatsNew{margin-bottom:14px}
@@ -99,7 +106,13 @@ table.diag td.num{text-align:right}
 <header>
   <h1>Сравнение папок и файлов</h1>
   <span class="ver" id="verLabel">этап 1</span>
+  <button class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false">☰ Меню</button>
+  <div id="menu" hidden>
+    <button data-m="up">Проверить обновления</button>
+    <div class="menu-foot" id="menuFoot"></div>
+  </div>
 </header>
+<div id="toast" hidden></div>
 <main>
   <div id="updateBanner" hidden></div>
   <div id="whatsNew" hidden></div>
@@ -183,9 +196,11 @@ table.diag td.num{text-align:right}
 
 <script>
 'use strict';
-const APP_VERSION = 'v1.2';
+// ВАЖНО: при каждой публикации увеличивать APP_VERSION здесь и VERSION в sw.js вместе.
+const APP_VERSION = '1.3', APP_DATE = '15.11.2026';
 // Что нового в каждой версии (показывается один раз после обновления).
 const CHANGES = {
+  '1.3': ['Новая версия больше не ставится сама: она ждёт, пока вы нажмёте «Обновить»', 'Меню: «Проверить обновления» и номер версии'],
   'v1.2': ['Уведомление о новой версии со списком изменений', 'После обновления — сообщение «Что нового»'],
   'v1.1': ['Работа без интернета больше не стирает офлайн-копии других приложений'],
   'v1.0': ['Этап 1: сравнение папок, исключения по маскам, таблица с группировкой и фильтрами']
@@ -1058,27 +1073,15 @@ async function copyReport() {
   }
 }
 
-let shownUpdate = '';
 const notesHTML = arr => Array.isArray(arr) && arr.length
   ? '<ul class="notes">' + arr.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>' : '';
-async function checkUpdate() {
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-  try {
-    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) return;
-    const info = await r.json();
-    const v = info.version;
-    if (!v || v === APP_VERSION || v === shownUpdate) return;
-    shownUpdate = v;
-    const b = document.getElementById('updateBanner');
-    b.innerHTML = `<div class="msg info"><span>Доступна новая версия <b>${esc(v)}</b> (у вас ${esc(APP_VERSION)}).</span>
-      <button class="primary" id="btnUpdate">Обновить</button>${notesHTML(info.notes)}</div>`;
-    b.hidden = false;
-    document.getElementById('btnUpdate').onclick = applyUpdate;
-    log('Найдена новая версия ' + v);
-  } catch (e) { /* нет сети — проверим позже */ }
+let toastTimer = 0;
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000);
 }
-// Один раз после обновления: «Приложение обновлено до vX» и что нового.
+// Один раз после обновления: «Приложение обновлено» и что нового.
 const SEEN_KEY = 'folder-compare-seen-version';
 function showWhatsNew() {
   let seen = null;
@@ -1094,13 +1097,65 @@ function showWhatsNew() {
   log(`Обновлено: ${seen} → ${APP_VERSION}`);
 }
 
+/* ---------- обновление приложения ----------
+   Новая версия скачивается в фоне и ждёт (sw.js не вызывает skipWaiting сам).
+   Панель «Доступна новая версия» → «Обновить» → SKIP_WAITING → controllerchange → перезагрузка. */
+let swReg = null;
+function showUpd() {
+  const b = document.getElementById('updateBanner');
+  if (!b.hidden) return;
+  b.innerHTML = `<div class="msg info"><span>Доступна новая версия</span><button class="primary" id="btnUpdate">Обновить</button></div>`;
+  b.hidden = false;
+  document.getElementById('btnUpdate').onclick = applyUpdate;
+  log('Доступна новая версия приложения');
+}
+function setupUpdates() {
+  if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+  const hadCtrl = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadCtrl || reloading) return;
+    reloading = true; location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    swReg = reg;
+    if (reg.waiting && navigator.serviceWorker.controller) showUpd();
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing; if (!w) return;
+      w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) showUpd(); });
+    });
+  }).catch(e => log('Работа без интернета не включилась: ' + e.name));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && swReg) swReg.update().catch(() => {});
+  });
+}
+async function checkUpdate() {
+  if (!swReg) { toast('Проверка обновлений доступна только при открытии с сайта'); return; }
+  if (swReg.waiting) { showUpd(); return; }
+  toast('Проверка…');
+  try { await swReg.update(); } catch (e) { toast('Нет связи с сервером'); return; }
+  setTimeout(() => {
+    if (swReg.waiting || swReg.installing) { if (swReg.waiting) showUpd(); else toast('Загружается новая версия…'); }
+    else toast(`Установлена последняя версия (${APP_VERSION})`);
+  }, 1500);
+}
 async function applyUpdate() {
   if (sides.some(s => s.job) && !confirm('Идёт обход папки. Обновить сейчас? Обход прервётся.')) return;
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (reg) await reg.update();
-  } catch (e) {}
-  location.reload();
+  const w = swReg && swReg.waiting;
+  if (w) w.postMessage('SKIP_WAITING'); else location.reload();
+}
+function setupMenu() {
+  const btn = document.getElementById('menuBtn'), menu = document.getElementById('menu');
+  document.getElementById('menuFoot').textContent = `Версия ${APP_VERSION} от ${APP_DATE}`;
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  btn.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); };
+  menu.onclick = e => {
+    const k = e.target.closest('[data-m]'); if (!k) return;
+    close();
+    if (k.dataset.m === 'up') checkUpdate();
+  };
+  document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 }
 
 for (const s of sides) {
@@ -1126,9 +1181,8 @@ initSettingsUI();
 initResultsUI();
 renderResults();
 showWhatsNew();
-setTimeout(checkUpdate, 3000);
-setInterval(checkUpdate, 30 * 60 * 1000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+setupMenu();
+setupUpdates();
 
 (async function init() {
   if (!SUPPORTED) {
@@ -1137,9 +1191,6 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   }
   log('Браузер: ' + ((navigator.userAgent.match(/(Edg|Chrome)\/[\d.]+/) || ['?'])[0]));
   log(`Запуск ${APP_VERSION}. ${launchMode()}, доступ к папкам: ${SUPPORTED ? 'есть' : 'нет'}`);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js').catch(e => log('Работа без интернета не включилась: ' + e.name));
-  }
   for (const s of sides) {
     try {
       const h = await IDB.get(s.id);

@@ -43,12 +43,15 @@ const check = (cond, msg) => { console.log((cond ? '  OK   ' : '  FAIL ') + msg)
   // 3. Обновление на следующую версию
   const swPath = path.join(ROOT, 'folder-compare', 'sw.js');
   const orig = fs.readFileSync(swPath, 'utf8');
-  fs.writeFileSync(swPath, orig.replace(/const VERSION = PREFIX \+ '[^']+'|const VERSION = '[^']+'/, m => m.replace(/'[^']+'$/, "'v9.9-test'").replace("'sravnenie-v9.9-test'", "'sravnenie-v9.9-test'")));
+  fs.writeFileSync(swPath, orig.replace(/const VERSION = '[^']+'/, "const VERSION = '9.9-test'"));
   const sw2 = await p.evaluate(async () => {
     const reg = await navigator.serviceWorker.getRegistration();
     await reg.update();
-    const w = reg.installing || reg.waiting || reg.active;
-    if (w && w.state !== 'activated') await new Promise(r => w.addEventListener('statechange', () => w.state === 'activated' && r()));
+    // новая версия ждёт команды «Обновить»
+    let w = reg.installing || reg.waiting;
+    if (w && w.state === 'installing') await new Promise(r => w.addEventListener('statechange', () => w.state !== 'installing' && r()));
+    w = reg.waiting;
+    if (w) { w.postMessage('SKIP_WAITING'); await new Promise(r => w.addEventListener('statechange', () => w.state === 'activated' && r())); }
     await new Promise(r => setTimeout(r, 300));
     return await caches.keys();
   });
