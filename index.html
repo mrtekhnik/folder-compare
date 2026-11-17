@@ -79,6 +79,26 @@ textarea{width:100%;height:260px;font-family:Consolas,monospace;font-size:12px}
 .chip.new{color:var(--new);background:var(--new-bg)} .chip.del{color:var(--del);background:var(--del-bg)}
 .vwrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin-top:10px}
 .vtable{min-width:980px}
+.vtable.two{min-width:1120px}
+.vtable .vhead.h2,.vtable.two .vhead.h1{display:none}
+.vtable.two .vhead.h2{display:grid}
+/* Две панели: A | символ | B */
+.vhead.h2,.vr.t{display:grid;grid-template-columns:minmax(200px,1fr) 88px 158px 104px minmax(200px,1fr) 88px 158px}
+.vr.t>div{padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vr.t .num{text-align:right;font-variant-numeric:tabular-nums}
+.vr.t .an,.vr.t .bn{padding-left:22px}
+.vr.t .mid{text-align:center;font-weight:700;border-left:1px solid var(--line);border-right:1px solid var(--line);background:#fff}
+.vr.t .mid .why{font-weight:400;font-size:11.5px;margin-left:3px}
+.vr.t .none{background:repeating-linear-gradient(135deg,#f3f4f6 0 6px,#fafbfc 6px 12px)}
+.vr.t.st-same{color:var(--same)} .vr.t.st-same .mid{color:var(--same)}
+.vr.t.st-chg .pa,.vr.t.st-chg .pb{background:var(--chg-bg)} .vr.t.st-chg .mid{color:var(--chg)}
+.vr.t.st-del .pa{background:var(--del-bg)} .vr.t.st-del .mid{color:var(--del)}
+.vr.t.st-new .pb{background:var(--new-bg)} .vr.t.st-new .mid{color:var(--new)}
+.vhead.h2>div:nth-child(4){border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:3px 10px;font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--accent);color:#fff}
 .vhead,.vr.f{display:grid;grid-template-columns:120px minmax(240px,1fr) 100px 100px 150px 150px 90px}
 .vhead{background:#f9fafb;font-weight:600;font-size:13px;border-bottom:1px solid var(--line)}
 .vhead>div,.vr.f>div{padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -139,6 +159,19 @@ table.diag td.num{text-align:right}
   .vr.f .sa:empty+.sb::before{content:""}
   .vr.f .dd{grid-area:dd;font-size:12.5px}
   .vr.f .da,.vr.f .db{display:none}
+  .vtable.two{min-width:0}
+  .vtable.two .vhead.h2{display:none}
+  .vr.t{grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"mid an as" "mid bn bs";align-content:center;row-gap:2px}
+  .vr.t>div{padding:0 6px;font-size:13px}
+  .vr.t .mid{grid-area:mid;align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:0;font-size:15px}
+  .vr.t .mid .why{display:none}
+  .vr.t .an{grid-area:an;padding-left:6px} .vr.t .as{grid-area:as}
+  .vr.t .bn{grid-area:bn;padding-left:6px} .vr.t .bs{grid-area:bs}
+  .vr.t .ad,.vr.t .bd{display:none}
+  .vr.t .an::before{content:"A · ";color:var(--muted);font-weight:400}
+  .vr.t .bn::before{content:"B · ";color:var(--muted);font-weight:400}
+  .vr.t .an.none::before{content:"A · нет";font-style:italic}
+  .vr.t .bn.none::before{content:"B · нет";font-style:italic}
   .hint{font-size:12.5px}
   .dragtxt{display:none}
   textarea{height:200px}
@@ -212,6 +245,7 @@ table.diag td.num{text-align:right}
     <div id="resMsg"></div>
     <div class="summary" id="summary"></div>
     <div class="row" id="viewBar" hidden>
+      <span class="seg" id="viewSeg" title="Вид результата"><button data-v="two">Две панели</button><button data-v="list">Список</button></span>
       <label><input type="checkbox" id="onlyDiff"> Только различия</label>
       <input type="search" id="search" placeholder="Поиск по имени или пути" style="width:280px">
       <button class="small" id="expandAll">Развернуть все</button>
@@ -219,8 +253,9 @@ table.diag td.num{text-align:right}
       <span class="muted" id="rowInfo"></span>
     </div>
     <div class="vwrap" id="vwrap" hidden>
-      <div class="vtable">
-        <div class="vhead"><div>Статус</div><div>Имя</div><div class="num">Размер A</div><div class="num">Размер B</div><div>Дата A</div><div>Дата B</div><div class="num">Разница</div></div>
+      <div class="vtable" id="vtable">
+        <div class="vhead h1"><div>Статус</div><div>Имя</div><div class="num">Размер A</div><div class="num">Размер B</div><div>Дата A</div><div>Дата B</div><div class="num">Разница</div></div>
+        <div class="vhead h2"><div id="hA">Слева (A)</div><div class="num">Размер</div><div>Дата</div><div title="= идентичен · ≠ изменён · − только в A · + только в B" style="text-align:center">⇄</div><div id="hB">Справа (B)</div><div class="num">Размер</div><div>Дата</div></div>
         <div class="vp" id="vp"><div class="vinner" id="vinner"><div class="vcontent" id="vcontent"></div></div></div>
       </div>
     </div>
@@ -240,9 +275,10 @@ table.diag td.num{text-align:right}
 <script>
 'use strict';
 // ВАЖНО: при каждой публикации увеличивать APP_VERSION здесь и VERSION в sw.js вместе.
-const APP_VERSION = '1.4', APP_DATE = '15.11.2026';
+const APP_VERSION = '1.5', APP_DATE = '17.11.2026';
 // Что нового в каждой версии (показывается один раз после обновления).
 const CHANGES = {
+  '1.5': ['Результат в две панели: слева папка A, справа B, одинаковые файлы — напротив друг друга', 'Переключатель «Две панели / Список»'],
   '1.4': ['Раскладка для телефона: шапка в одну строку, кнопки во всю ширину, таблица без горизонтальной прокрутки'],
   '1.3': ['Новая версия больше не ставится сама: она ждёт, пока вы нажмёте «Обновить»', 'Меню: «Проверить обновления» и номер версии'],
   'v1.2': ['Уведомление о новой версии со списком изменений', 'После обновления — сообщение «Что нового»'],
@@ -433,7 +469,8 @@ const settings = {
   size: true, date: true, tol: 2,
   ext: '',
   excl: DEFAULT_EXCL.map(m => ({ mask: m, on: true })),
-  onlyDiff: false
+  onlyDiff: false,
+  view: 'two'
 };
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
@@ -964,6 +1001,9 @@ function renderResults() {
     renderResults();
   });
   bar.hidden = false; wrap.hidden = false;
+  document.getElementById('hA').textContent = `Слева (A): ${S.A.result.root}`;
+  document.getElementById('hB').textContent = `Справа (B): ${S.B.result.root}`;
+  applyViewMode();
   buildRows(); renderRows(); renderDiag();
 }
 
@@ -993,6 +1033,35 @@ function buildRows() {
   document.getElementById('vinner').style.height = rows.length * ROW_H + 'px';
 }
 
+const SYM = { same: '=', chg: '≠', new: '+', del: '−' };
+const SYM_TIP = { same: 'Идентичен', chg: 'Изменён', new: 'Только в B (новый)', del: 'Только в A (удалён)' };
+const SHORT_WHY = { 'размер': 'разм.', 'дата': 'дата', 'размер и дата': 'разм.+дата' };
+// Телефон: длинное имя сокращаем в СЕРЕДИНЕ — конец имени (K1/K2, 06/061, расширение) должен быть виден.
+// Имя рисуется целиком (data-full), после отрисовки ячейка измеряется и имя подрезается ровно по ширине.
+function fitCell(el) {
+  const full = el.dataset.full;
+  if (!full || el.scrollWidth <= el.clientWidth) return;
+  const set = k => { el.textContent = full.slice(0, 6) + '…' + full.slice(full.length - k); };
+  let lo = 4, hi = full.length - 7;
+  while (lo < hi) {               // наибольший хвост, который помещается
+    const mid = (lo + hi + 1) >> 1;
+    set(mid);
+    if (el.scrollWidth <= el.clientWidth) lo = mid; else hi = mid - 1;
+  }
+  set(lo);
+}
+function rowTwo(p) {
+  const a = p.a, b = p.b;
+  const side = (x, c) => x
+    ? `<div class="p${c} ${c}n" data-full="${esc(splitPath(x.p).name)}">${esc(splitPath(x.p).name)}</div>` +
+      `<div class="p${c} ${c}s num${p.sizeDiff ? ' dif' : ''}">${num(x.s)}</div>` +
+      `<div class="p${c} ${c}d${p.dateDiff ? ' dif' : ''}">${fmtDate(x.m)}</div>`
+    : `<div class="p${c} ${c}n none"></div><div class="p${c} ${c}s none"></div><div class="p${c} ${c}d none"></div>`;
+  const tip = SYM_TIP[p.status] + (p.reason ? ': ' + p.reason + (p.dateDiff && p.dd ? ' (' + fmtDelta(p.dd) + ')' : '') : '');
+  return `<div class="vr t st-${p.status}" title="${esc((b || a).p + ' — ' + tip)}">` + side(a, 'a') +
+    `<div class="mid">${SYM[p.status]}${p.reason ? `<span class="why">${SHORT_WHY[p.reason] || ''}</span>` : ''}</div>` +
+    side(b, 'b') + '</div>';
+}
 function rowHTML(r) {
   if (r.t === 'g') {
     const g = r.g;
@@ -1000,11 +1069,12 @@ function rowHTML(r) {
       `<span class="path">${esc(g.dir || '(корень папки)')}</span>` +
       `<span class="muted" style="font-weight:400">· файлов ${num(g.all)}${g.diff ? ` · различий ${num(g.diff)}` : ''}</span></div>`;
   }
+  if (settings.view !== 'list') return rowTwo(r.pr);
   const p = r.pr, a = p.a, b = p.b;
   const tip = (b || a).p + (p.reason ? ' — отличается: ' + p.reason : '');
   return `<div class="vr f st-${p.status}" title="${esc(tip)}">` +
     `<div class="stc">${STATUS[p.status]}${p.reason ? ` <span class="muted" style="font-weight:400">(${p.reason})</span>` : ''}</div>` +
-    `<div class="nm">${esc(p.name)}</div>` +
+    `<div class="nm" data-full="${esc(p.name)}">${esc(p.name)}</div>` +
     `<div class="num sa${p.sizeDiff ? ' dif' : ''}">${a ? num(a.s) : ''}</div>` +
     `<div class="num sb${p.sizeDiff ? ' dif' : ''}">${b ? num(b.s) : '' }</div>` +
     `<div class="da${p.dateDiff ? ' dif' : ''}">${a ? fmtDate(a.m) : ''}</div>` +
@@ -1023,6 +1093,7 @@ function renderRows() {
   let html = '';
   for (let i = start; i < end; i++) html += rowHTML(V.rows[i]);
   content.innerHTML = html;
+  if (PHONE_MQ.matches) content.querySelectorAll('[data-full]').forEach(fitCell);
 }
 
 function renderDiag() {
@@ -1043,7 +1114,17 @@ function renderDiag() {
     B.map(([t], i) => `<tr><td>${esc(t)}</td><td class="num">${num(cnt[i][0])}</td><td class="num">${num(cnt[i][1])}</td></tr>`).join('') + '</table>';
 }
 
+function applyViewMode() {
+  const two = settings.view !== 'list';
+  document.getElementById('vtable').classList.toggle('two', two);
+  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === (two ? 'two' : 'list')));
+}
 function initResultsUI() {
+  document.querySelectorAll('#viewSeg button').forEach(b => b.onclick = () => {
+    settings.view = b.dataset.v; saveSettings(); applyViewMode();
+    if (CMP) renderRows();
+  });
+  applyViewMode();
   const vp = document.getElementById('vp');
   vp.addEventListener('scroll', () => {
     if (!V.raf) V.raf = requestAnimationFrame(() => { V.raf = 0; renderRows(); });

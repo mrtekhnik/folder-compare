@@ -4,7 +4,7 @@
 // Новая версия скачивается целиком и ЖДЁТ нажатия «Обновить» (skipWaiting только по команде).
 // Удаляются только свои старые кэши (sravnenie-*): на домене mrtekhnik.github.io живут и другие приложения.
 const PREFIX = 'sravnenie-';
-const VERSION = '1.4';
+const VERSION = '1.5';
 const CACHE = PREFIX + VERSION;
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

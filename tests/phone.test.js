@@ -1,4 +1,4 @@
-// Автотест раскладки для телефона и ПК. Нужны: локальный сервер приложения на :8765 и тестовые папки A/Proj, B/Proj (см. путь ниже).
+// Автотест раскладки для телефона и ПК. Нужны: локальный сервер приложения на :8765 и тестовые папки A/Proj, B/Proj.
 const { chromium, devices } = require('playwright');
 let fails = 0; const check = (c, m) => { console.log((c ? '  OK   ' : '  FAIL ') + m); if (!c) fails++; };
 (async () => {
@@ -21,7 +21,7 @@ let fails = 0; const check = (c, m) => { console.log((c ? '  OK   ' : '  FAIL ')
     await p.click('#menuBtn'); const mr = await p.$eval('#menu', e => e.getBoundingClientRect());
     check(mr.left >= 0 && mr.right <= vp.width, 'меню открывается в пределах экрана'); await p.click('#menuBtn');
     await p.setInputFiles('#side-A [data-f="dirinput"]', '/tmp/claude-0/-home-claude/28b56914-0eb6-5dc5-acbf-324cc200c8bd/scratchpad/A/Proj'); await p.setInputFiles('#side-B [data-f="dirinput"]', '/tmp/claude-0/-home-claude/28b56914-0eb6-5dc5-acbf-324cc200c8bd/scratchpad/B/Proj'); await p.waitForTimeout(400);
-    await p.check('#onlyDiff'); await p.waitForTimeout(150);
+    await p.click('#viewSeg [data-v="list"]'); await p.check('#onlyDiff'); await p.waitForTimeout(150);
     const rows = await p.$$eval('#vcontent .vr.f', els => els.slice(0, 4).map(e => { const r = e.getBoundingClientRect(); const nm = e.querySelector('.nm').getBoundingClientRect(); const st = e.querySelector('.stc').getBoundingClientRect();
       return { h: Math.round(r.height), twoLines: st.top > nm.top + 5, fits: r.right <= window.innerWidth + 1, txt: e.innerText.replace(/\s+/g, ' ') }; }));
     rows.forEach(r => console.log('       строка:', r.txt, '| высота', r.h));
@@ -39,7 +39,8 @@ let fails = 0; const check = (c, m) => { console.log((c ? '  OK   ' : '  FAIL ')
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } }); await p.goto('http://localhost:8765/'); await p.waitForTimeout(300);
   check((await p.textContent('#menuBtn')).includes('Меню'), 'на ПК кнопка «☰ Меню» с подписью');
   await p.setInputFiles('#side-A [data-f="dirinput"]', '/tmp/claude-0/-home-claude/28b56914-0eb6-5dc5-acbf-324cc200c8bd/scratchpad/A/Proj'); await p.setInputFiles('#side-B [data-f="dirinput"]', '/tmp/claude-0/-home-claude/28b56914-0eb6-5dc5-acbf-324cc200c8bd/scratchpad/B/Proj'); await p.waitForTimeout(300);
-  check(await p.isVisible('.vhead'), 'на ПК заголовок таблицы виден');
+  await p.click('#viewSeg [data-v="list"]'); await p.waitForTimeout(100);
+  check(await p.isVisible('.vhead.h1'), 'на ПК заголовок таблицы виден');
   check(await p.$eval('#vcontent .vr.f', e => Math.round(e.getBoundingClientRect().height)) === 28, 'на ПК строки в одну линию (28 px)');
   check(await p.isVisible('#vcontent .vr.f .da'), 'на ПК даты A и B показаны');
   await b.close();
